@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幸運點名神器</title>
+    <title>分組點點名</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=LXGW+WenKai+TC:wght@400;700&display=swap" rel="stylesheet">
@@ -40,8 +40,10 @@
         textarea::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         textarea::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         textarea::-webkit-scrollbar-thumb:hover { background: #555; }
+        
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
         .group-card { animation: slideIn 0.4s ease-out forwards; opacity: 0; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
@@ -54,6 +56,10 @@
         .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
         .modal-exit { opacity: 1; transform: scale(1); }
         .modal-exit-active { opacity: 0; transform: scale(0.9); transition: all 0.2s ease-in; }
+
+        /* 轉盤陰影效果 */
+        .wheel-shadow { filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3)); }
+        .pointer-shadow { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
@@ -62,80 +68,46 @@
     <audio id="sound-roll" loop src="https://assets.mixkit.co/active_storage/sfx/2044/2044-preview.mp3"></audio>
     <audio id="sound-win" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
 
-    <div class="glass-panel w-full max-w-6xl rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-2xl h-[90vh] md:h-auto md:min-h-[700px]">
+    <!-- Main Container -->
+    <div class="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col shadow-2xl h-[90vh] md:h-auto md:min-h-[700px]">
         
-        <!-- 左側：控制與輸入區 -->
-        <div class="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 overflow-y-auto">
-            <h1 class="text-2xl font-black text-indigo-600 mb-4 flex items-center gap-2 cursor-pointer select-none" onclick="window.location.reload()">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-4 md:px-8 border-b border-gray-100 bg-white/50">
+            <h1 class="text-2xl font-black text-indigo-600 flex items-center gap-2 cursor-pointer select-none" onclick="window.location.reload()">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                點名神器
+                分組點點名
             </h1>
             
-            <div class="flex justify-between items-center mb-2">
-                <label class="text-sm font-bold text-gray-500 uppercase tracking-wide">名單列表 (<span id="count">0</span> 人)</label>
-                <button onclick="clearList()" class="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition">清空</button>
-            </div>
-            
-            <textarea id="inputNames" class="flex-1 w-full min-h-[150px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none text-gray-700 bg-white shadow-inner mb-4 text-base" placeholder="請在此輸入名字&#10;每行一個名字&#10;例如：&#10;王小明&#10;李大華&#10;張三"></textarea>
+            <div class="flex gap-2">
+                <button onclick="openEditModal()" class="p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition tooltip-container relative group" title="編輯名單">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">編輯名單</span>
+                </button>
 
-            <div class="space-y-4 mt-auto">
-                <!-- 抽籤設定 -->
-                <div class="bg-white p-3 rounded-lg border border-gray-200">
-                    <div class="text-xs font-bold text-gray-400 uppercase mb-2 flex justify-between items-center">
-                        單人抽籤設定
-                        <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">空白鍵可開始</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-700 font-bold">抽中後移除名單</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="removeAfterPick" class="sr-only peer">
-                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- 分組設定 -->
-                <div class="bg-white p-3 rounded-lg border border-gray-200">
-                    <div class="text-xs font-bold text-gray-400 uppercase mb-2">團體分組模式</div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-700 font-bold whitespace-nowrap">分為</span>
-                        <input type="number" id="groupCount" min="2" value="2" class="w-16 p-1 text-center border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-base">
-                        <span class="text-sm text-gray-700 font-bold">組</span>
-                        <button onclick="generateGroups()" class="ml-auto bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded text-sm font-bold transition">立即分組</button>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
-                    <button onclick="addDefaultList()" class="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold transition">載入範例</button>
-                    <button onclick="resetList()" class="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold transition">重置名單</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 右側：顯示與執行區 -->
-        <!-- 修正：在 md (電腦版) 尺寸下，將上方 padding 增加至 pt-20，確保不會遮擋功能按鈕 -->
-        <div class="w-full md:w-2/3 px-4 pb-4 pt-16 md:px-8 md:pb-8 md:pt-20 flex flex-col bg-white relative overflow-y-auto">
-            
-            <!-- 工具列 (絕對定位於右上角) -->
-            <div class="absolute top-4 right-4 z-10 flex gap-2">
                 <button id="wakeLockBtn" onclick="toggleWakeLock()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition tooltip-container relative group" title="防止螢幕休眠">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
-                    <!-- Tooltip -->
-                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">螢幕常亮</span>
+                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">螢幕常亮</span>
                 </button>
+
                 <button id="soundBtn" onclick="toggleSound()" class="sound-btn active p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition relative group" title="開關音效">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.414z" clip-rule="evenodd" />
                     </svg>
-                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">開關音效</span>
+                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">開關音效</span>
                 </button>
             </div>
+        </div>
 
-            <!-- 單人抽籤視圖 (預設顯示) -->
+        <!-- Main Display Area -->
+        <div class="flex-1 px-4 py-6 md:px-8 flex flex-col bg-white relative overflow-y-auto overflow-x-hidden">
+            
+            <!-- 單人抽籤視圖 -->
             <div id="singleView" class="flex-1 flex flex-col items-center justify-center w-full transition-opacity duration-300">
                 <div id="resultCard" class="relative w-full aspect-video md:aspect-auto md:h-64 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border-2 border-indigo-100 mb-8 p-4 text-center overflow-hidden">
                     <div id="displayName" class="name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all">
@@ -152,7 +124,7 @@
                     <span id="btnText">開始點名</span>
                 </button>
 
-                <!-- 歷史紀錄區 -->
+                <!-- 歷史紀錄 -->
                 <div class="mt-8 w-full max-w-lg">
                     <div class="flex justify-between items-end mb-2 border-b border-gray-100 pb-1">
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">本輪已抽出 (<span id="historyCount">0</span>)</span>
@@ -164,9 +136,8 @@
                 </div>
             </div>
 
-            <!-- 分組結果視圖 (預設隱藏) -->
+            <!-- 分組結果視圖 -->
             <div id="groupView" class="hidden flex-col w-full flex-1">
-                <!-- 標題列 -->
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-100 pb-4 gap-4 md:gap-0">
                     <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -192,22 +163,137 @@
                 </div>
             </div>
 
-            <!-- Footer Signature -->
-            <div class="mt-auto pt-4 text-center w-full">
+            <!-- 轉盤視圖 -->
+            <div id="wheelView" class="hidden flex-col items-center justify-center w-full flex-1 relative">
+                 <div class="w-full flex justify-between items-center mb-4">
+                     <h2 class="text-2xl font-bold text-gray-800">幸運轉盤</h2>
+                     <button onclick="showSingleView()" class="px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">返回單人抽籤</button>
+                 </div>
+                 
+                 <div class="relative w-full max-w-[450px] aspect-square flex items-center justify-center wheel-shadow rounded-full">
+                    <canvas id="wheelCanvas" width="500" height="500" class="w-full h-full transform transition-transform duration-[4000ms] ease-out"></canvas>
+                    
+                    <!-- 美化版指針 (SVG) -->
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 w-12 h-14 z-20 pointer-shadow">
+                        <svg viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 50L0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10L20 50Z" fill="#EF4444"/>
+                            <path d="M20 50L0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10L20 50Z" stroke="white" stroke-width="2"/>
+                            <circle cx="20" cy="12" r="6" fill="#7F1D1D"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- 中心按鈕 -->
+                    <button onclick="spinWheel()" id="spinBtn" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-b from-white to-gray-200 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] border-[6px] border-indigo-500 flex items-center justify-center text-indigo-600 font-black text-xl z-10 hover:scale-105 transition active:scale-95 active:shadow-inner">
+                        GO
+                    </button>
+                 </div>
+            </div>
+
+        </div>
+
+        <!-- Integrated Footer Control Bar -->
+        <div class="bg-gray-50/90 backdrop-blur border-t border-gray-200 p-4 md:p-6">
+            <div class="flex flex-col md:flex-row gap-4 justify-between items-center bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+                
+                <!-- 1. Mode: Keep/Remove Toggle (Updated with Buttons, Default: Remove) -->
+                <div class="flex items-center gap-3 w-full md:w-auto justify-center md:justify-start px-2">
+                    <span class="text-sm font-bold text-gray-500 whitespace-nowrap">抽中後:</span>
+                    <div class="flex bg-gray-100 p-1 rounded-lg">
+                        <button id="btnKeep" onclick="setMode('keep')" class="px-3 py-1.5 text-sm font-bold rounded-md transition-all text-gray-500">保留名單</button>
+                        <button id="btnRemove" onclick="setMode('remove')" class="px-3 py-1.5 text-sm font-bold rounded-md transition-all bg-white text-indigo-600 shadow-sm">移除名單</button>
+                    </div>
+                    <!-- Hidden Checkbox for logic compatibility (Default Checked) -->
+                    <input type="checkbox" id="removeAfterPick" class="hidden" checked>
+                </div>
+
+                <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+
+                <!-- 2. Grouping Mode -->
+                <div class="flex items-center gap-2 w-full md:w-auto justify-center">
+                    <span class="text-sm font-bold text-gray-500 whitespace-nowrap">分組:</span>
+                    <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                        <input type="number" id="groupCount" min="2" value="2" class="w-12 p-1.5 text-center bg-transparent focus:outline-none text-sm font-bold text-gray-700">
+                        <span class="text-xs font-bold text-gray-400 border-r border-gray-200 px-1">組</span>
+                        <button onclick="generateGroups()" class="bg-white hover:bg-gray-50 text-indigo-600 px-3 py-1.5 text-sm font-bold transition whitespace-nowrap">執行</button>
+                    </div>
+                </div>
+
+                <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
+
+                <!-- 3. Wheel Mode -->
+                <div class="w-full md:w-auto flex justify-center md:justify-end">
+                    <button onclick="initWheelMode()" class="flex items-center gap-2 text-sm font-bold text-orange-500 hover:text-orange-600 transition px-2">
+                        <div class="p-1.5 bg-orange-100 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <span>幸運轉盤</span>
+                    </button>
+                </div>
+
+            </div>
+            
+            <!-- Signature -->
+            <div class="mt-4 text-center w-full">
                 <p class="text-sm text-gray-300 font-medium tracking-widest hover:text-indigo-300 transition-colors cursor-default signature-font">
                     Design by Sophia
                 </p>
             </div>
-
         </div>
     </div>
 
-    <!-- Custom Modal Structure -->
-    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none" style="backdrop-filter: blur(2px);">
+    <!-- Edit List Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] transform transition-all scale-90">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    編輯名單
+                </h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="p-5 flex-1 overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-sm font-bold text-gray-500 uppercase tracking-wide">名單內容 (<span id="count">0</span> 人)</label>
+                    <div class="flex gap-2">
+                        <button onclick="exportList()" class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded transition flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            匯出
+                        </button>
+                        <label class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded transition flex items-center gap-1 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            匯入
+                            <input type="file" id="fileInput" accept=".json,.txt" class="hidden" onchange="importList(this)">
+                        </label>
+                    </div>
+                </div>
+                <textarea id="inputNames" class="flex-1 w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none text-gray-700 bg-gray-50 shadow-inner text-base" placeholder="請在此輸入名字&#10;每行一個名字"></textarea>
+            </div>
+
+            <div class="p-5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between gap-3">
+                <div class="flex gap-2">
+                    <button onclick="addDefaultList()" class="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-sm font-medium transition shadow-sm">載入範例</button>
+                    <button onclick="clearList()" class="px-3 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-lg text-sm font-medium transition shadow-sm">清空</button>
+                </div>
+                <button onclick="closeEditModal()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold transition shadow-lg shadow-indigo-200">完成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal Structure -->
+    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none" style="backdrop-filter: blur(2px);">
         <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-90">
-            <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-2">提示</h3>
-            <p id="modalMessage" class="text-gray-600 mb-6 text-sm leading-relaxed">Message goes here</p>
-            <div id="modalActions" class="flex justify-end gap-3">
+            <!-- 移除標題 h3 -->
+            <div id="modalMessage" class="text-gray-600 mb-6 text-sm leading-relaxed text-center">Message goes here</div>
+            <div id="modalActions" class="flex justify-center gap-3">
                 <!-- Buttons injected here -->
             </div>
         </div>
@@ -222,8 +308,16 @@
         let history = []; 
         let soundEnabled = true;
         let wakeLock = null;
+        let audioCtx = null; 
 
-        // Emoji 庫 (動物與水果)
+        // 轉盤變數
+        let wheelCanvas, wheelCtx;
+        let currentRotation = 0;
+        let isSpinningWheel = false;
+        let lastTickAngle = 0; 
+        
+        let wheelColors = ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA', '#90dbf4', '#f1c0e8'];
+
         const cuteEmojis = [
             "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
             "🐔","🐧","🐦","🦆","🦄","🦋","🐢","🐬","🐳","🦖","🦕","🐘","🦒",
@@ -237,19 +331,24 @@
         // DOM 元素
         const textarea = document.getElementById('inputNames');
         const countDisplay = document.getElementById('count');
-        const soundRoll = document.getElementById('sound-roll');
+        const soundRoll = document.getElementById('sound-roll'); 
         const soundWin = document.getElementById('sound-win');
         const soundBtn = document.getElementById('soundBtn');
         const wakeLockBtn = document.getElementById('wakeLockBtn');
+        const fileInput = document.getElementById('fileInput');
         
-        // Modal Elements
+        // Modals
         const modal = document.getElementById('customModal');
-        const modalTitle = document.getElementById('modalTitle');
         const modalMessage = document.getElementById('modalMessage');
         const modalActions = document.getElementById('modalActions');
+        const editModal = document.getElementById('editModal');
 
-        // Single View Elements
+        // Views
         const singleView = document.getElementById('singleView');
+        const groupView = document.getElementById('groupView');
+        const wheelView = document.getElementById('wheelView');
+        
+        // Single View Specifics
         const displayName = document.getElementById('displayName');
         const statusText = document.getElementById('statusText');
         const actionBtn = document.getElementById('actionBtn');
@@ -259,10 +358,13 @@
         const historyCount = document.getElementById('historyCount');
         const resultCard = document.getElementById('resultCard');
 
-        // Group View Elements
-        const groupView = document.getElementById('groupView');
+        // Group View Specifics
         const groupsContainer = document.getElementById('groupsContainer');
         const groupCountInput = document.getElementById('groupCount');
+
+        // Wheel View Specifics
+        const wheelCanvasEl = document.getElementById('wheelCanvas');
+        const spinBtn = document.getElementById('spinBtn');
 
         // 初始化
         window.onload = () => {
@@ -276,11 +378,84 @@
             
             soundRoll.volume = 0.5;
             soundWin.volume = 0.5;
+
+            // Init Wheel Context
+            wheelCtx = wheelCanvasEl.getContext('2d');
         };
 
-        // Modal System
+        // --- Mode Toggle Logic ---
+        function setMode(mode) {
+            const checkbox = document.getElementById('removeAfterPick');
+            const btnKeep = document.getElementById('btnKeep');
+            const btnRemove = document.getElementById('btnRemove');
+            
+            if (mode === 'remove') {
+                checkbox.checked = true;
+                btnRemove.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                btnRemove.classList.remove('text-gray-500');
+                btnKeep.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                btnKeep.classList.add('text-gray-500');
+            } else {
+                checkbox.checked = false;
+                btnKeep.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                btnKeep.classList.remove('text-gray-500');
+                btnRemove.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                btnRemove.classList.add('text-gray-500');
+            }
+        }
+
+        // --- Edit Modal Logic ---
+        function openEditModal() {
+            editModal.classList.remove('hidden', 'pointer-events-none', 'opacity-0');
+            editModal.querySelector('div').classList.remove('scale-90');
+            editModal.querySelector('div').classList.add('scale-100');
+        }
+
+        function closeEditModal() {
+            editModal.classList.add('opacity-0', 'pointer-events-none');
+            editModal.querySelector('div').classList.remove('scale-100');
+            editModal.querySelector('div').classList.add('scale-90');
+            setTimeout(() => {
+                editModal.classList.add('hidden');
+                // Ensure count is updated when closed
+                updateCount();
+            }, 300);
+        }
+
+        // --- Audio System ---
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playWheelTick() {
+            if (!soundEnabled || !audioCtx) return;
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.05);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        // --- Alert Modal System ---
         function showModal(message, type = 'alert', onConfirm = null) {
-            modalMessage.innerText = message;
+            // 使用 innerHTML 以支援客製化格式
+            modalMessage.innerHTML = message;
             modalActions.innerHTML = '';
             
             modal.classList.remove('hidden', 'pointer-events-none', 'opacity-0');
@@ -321,15 +496,17 @@
             }, 300);
         }
 
-        // 監聽鍵盤
+        // Input & Keys
         document.addEventListener('keydown', (e) => {
             if (document.activeElement === textarea || document.activeElement === groupCountInput) return;
             if (!modal.classList.contains('hidden')) return; 
+            if (!editModal.classList.contains('hidden')) return; 
 
             if (e.code === 'Space') {
                 e.preventDefault(); 
-                if (!groupView.classList.contains('hidden')) return; 
-                toggleRoll();
+                if (!singleView.classList.contains('hidden') && !singleView.classList.contains('flex-none')) { 
+                    toggleRoll();
+                }
             }
         });
 
@@ -353,7 +530,7 @@
         }
 
         function addDefaultList() {
-            const defaults = "愛因斯坦\n牛頓\n居里夫人\n達爾文\n特斯拉\n伽利略\n霍金\n諾貝爾\n歐幾里得\n阿基米德";
+            const defaults = "劉芯娜\n楊斐扉\n吳睿圻\n陳芋霏\n余英\n曾子情\n林子桓\n許家笠\n高安喆\n黃柏銓\n飛飛\n陳柏言\n李秉芸";
             textarea.value = defaults;
             updateCount();
             saveToStorage();
@@ -376,6 +553,52 @@
              showModal("名單已重置為最後保存的狀態。");
         }
 
+        // --- Import / Export ---
+        function exportList() {
+            updateCount();
+            if (names.length === 0) {
+                showModal("名單是空的，無法匯出！");
+                return;
+            }
+            const dataStr = JSON.stringify(names);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'namelist.json';
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function importList(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    try {
+                        const parsed = JSON.parse(content);
+                        if (Array.isArray(parsed)) {
+                            textarea.value = parsed.join('\n');
+                        } else {
+                            throw new Error("Invalid JSON array");
+                        }
+                    } catch (jsonErr) {
+                        textarea.value = content;
+                    }
+                    updateCount();
+                    saveToStorage();
+                    showModal("名單匯入成功！");
+                } catch (err) {
+                    showModal("匯入失敗，檔案格式錯誤。");
+                }
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
         function resetUI() {
             displayName.innerText = "READY?";
             displayName.className = "name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all";
@@ -383,13 +606,14 @@
             showSingleView();
         }
 
-        // --- 音效與設定 ---
+        // --- Sound & WakeLock ---
         function toggleSound() {
             soundEnabled = !soundEnabled;
             if (soundEnabled) {
                 soundBtn.classList.remove('muted');
                 soundBtn.classList.add('active', 'bg-indigo-50', 'text-indigo-600');
                 soundBtn.classList.remove('bg-gray-100', 'text-gray-400');
+                initAudioContext(); 
             } else {
                 soundBtn.classList.add('muted');
                 soundBtn.classList.remove('active', 'bg-indigo-50', 'text-indigo-600');
@@ -401,13 +625,17 @@
 
         function playSound(type) {
             if (!soundEnabled) return;
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
             if (type === 'roll') {
                 soundRoll.currentTime = 0;
-                soundRoll.play().catch(e => console.log('Audio play failed', e));
+                soundRoll.play().catch(e => {});
             } else if (type === 'win') {
                 soundRoll.pause();
                 soundWin.currentTime = 0;
-                soundWin.play().catch(e => console.log('Audio play failed', e));
+                soundWin.play().catch(e => {});
             }
         }
 
@@ -418,12 +646,10 @@
                         wakeLock = await navigator.wakeLock.request('screen');
                         wakeLockBtn.classList.add('bg-yellow-100', 'text-yellow-600');
                         wakeLockBtn.classList.remove('bg-gray-100', 'text-gray-500');
-                        statusText.innerText = "螢幕將保持常亮";
                         wakeLock.addEventListener('release', () => {
                             if(wakeLock === null) {
                                 wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
                                 wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
-                                statusText.innerText = "已解除螢幕常亮";
                             }
                         });
                     } else {
@@ -431,12 +657,10 @@
                         wakeLock = null;
                         wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
                         wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
-                        statusText.innerText = "已解除螢幕常亮";
                     }
                 } catch (err) {
-                    console.warn(`Wake Lock Error: ${err.name}, ${err.message}`);
                     if (err.name === 'NotAllowedError') {
-                        showModal("無法啟用防休眠：\n當前瀏覽器權限設定不允許此功能。\n(這通常發生在特定視窗環境或省電模式下)");
+                        showModal("無法啟用防休眠：\n權限被拒或電量過低。");
                     } else {
                         showModal("無法啟用防休眠功能");
                     }
@@ -445,18 +669,18 @@
                     wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
                 }
             } else {
-                showModal("您的瀏覽器不支援防休眠功能");
+                showModal("瀏覽器不支援防休眠");
             }
         }
 
-        // --- 單人抽籤功能 ---
-
+        // --- Single Roll Logic ---
         function toggleRoll() {
             updateCount(); 
+            initAudioContext(); 
 
             if (names.length === 0) {
                 showModal("請先輸入名單！");
-                textarea.focus();
+                openEditModal(); 
                 return;
             }
 
@@ -487,7 +711,6 @@
             let speed = 50;
             rollInterval = setInterval(() => {
                 const randomName = names[Math.floor(Math.random() * names.length)];
-                // 抽籤過程加入隨機 Emoji
                 displayName.innerText = getRandomEmoji() + ' ' + randomName;
             }, speed);
         }
@@ -499,7 +722,6 @@
             const winnerIndex = Math.floor(Math.random() * names.length);
             const winnerName = names[winnerIndex];
             
-            // 最終結果加上 Emoji
             const winnerEmoji = getRandomEmoji();
             const finalText = `${winnerEmoji} ${winnerName}`;
             
@@ -515,7 +737,7 @@
             resultCard.classList.remove('border-indigo-400', 'shadow-inner');
 
             playSound('win');
-            addToHistory(finalText); // 記錄包含 Emoji 的名字
+            addToHistory(finalText); 
             fireConfetti();
 
             if (removeCheckbox.checked) {
@@ -525,6 +747,7 @@
             }
         }
 
+        // --- Common Utils ---
         function removeName(index) {
             const removed = names.splice(index, 1);
             textarea.value = names.join('\n');
@@ -558,12 +781,12 @@
             });
         }
 
-        // --- 分組功能 ---
-
+        // --- Group Logic ---
         function generateGroups() {
             updateCount();
             if (names.length === 0) {
                 showModal("請先輸入名單！");
+                openEditModal();
                 return;
             }
 
@@ -586,7 +809,6 @@
 
             let groups = Array.from({ length: numGroups }, () => []);
             shuffled.forEach((name, index) => {
-                // 分組時也加上隨機 Emoji
                 groups[index % numGroups].push(`${getRandomEmoji()} ${name}`);
             });
 
@@ -611,7 +833,7 @@
                 group.forEach(name => {
                     const li = document.createElement('li');
                     li.className = 'flex items-center gap-2';
-                    li.innerHTML = `<span class="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>${name}`; // 圓點改為直接顯示名字（因為名字現在包含了 Emoji）
+                    li.innerHTML = `<span class="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>${name}`;
                     list.appendChild(li);
                 });
 
@@ -621,11 +843,192 @@
             });
         }
 
+        // --- Wheel Logic ---
+        function initWheelMode() {
+            updateCount();
+            if (names.length === 0) {
+                showModal("請先輸入名單！");
+                openEditModal();
+                return;
+            }
+            if (names.length < 2) {
+                showModal("轉盤模式至少需要 2 人！");
+                return;
+            }
+            initAudioContext();
+            showWheelView();
+            currentRotation = 0; 
+            lastTickAngle = 0;
+            drawWheel();
+        }
+
+        function drawWheel() {
+            if (!wheelCtx) return;
+            
+            const numSegments = names.length;
+            const arcSize = (2 * Math.PI) / numSegments;
+            const centerX = 250;
+            const centerY = 250;
+            const radius = 220; 
+
+            wheelCtx.clearRect(0, 0, 500, 500);
+
+            // 1. Rotation
+            wheelCtx.save();
+            wheelCtx.translate(centerX, centerY);
+            wheelCtx.rotate(currentRotation);
+            wheelCtx.translate(-centerX, -centerY);
+
+            // 2. Segments
+            for (let i = 0; i < numSegments; i++) {
+                const angle = i * arcSize;
+                const color = wheelColors[i % wheelColors.length];
+                
+                wheelCtx.beginPath();
+                wheelCtx.moveTo(centerX, centerY);
+                wheelCtx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                wheelCtx.closePath();
+                wheelCtx.fillStyle = color;
+                wheelCtx.fill();
+                wheelCtx.lineWidth = 1;
+                wheelCtx.strokeStyle = "white";
+                wheelCtx.stroke();
+
+                // Text
+                wheelCtx.save();
+                wheelCtx.translate(centerX, centerY);
+                wheelCtx.rotate(angle + arcSize / 2);
+                wheelCtx.textAlign = "right";
+                wheelCtx.textBaseline = "middle";
+                wheelCtx.fillStyle = "#333";
+                
+                const emoji = cuteEmojis[i % cuteEmojis.length];
+                const text = `${emoji} ${names[i]}`;
+                
+                let fontSize = 24;
+                const maxTextWidth = radius * 0.75; 
+                wheelCtx.font = `bold ${fontSize}px 'Noto Sans TC'`;
+                let textWidth = wheelCtx.measureText(text).width;
+                
+                while (textWidth > maxTextWidth && fontSize > 10) {
+                    fontSize -= 1;
+                    wheelCtx.font = `bold ${fontSize}px 'Noto Sans TC'`;
+                    textWidth = wheelCtx.measureText(text).width;
+                }
+
+                wheelCtx.shadowColor = "rgba(255, 255, 255, 0.8)";
+                wheelCtx.shadowBlur = 4;
+                wheelCtx.fillText(text, radius - 20, 0);
+                wheelCtx.restore();
+            }
+            
+            // 3. Outer Ring
+            wheelCtx.beginPath();
+            wheelCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            wheelCtx.lineWidth = 16;
+            wheelCtx.strokeStyle = "#FFFFFF"; 
+            wheelCtx.stroke();
+            
+            wheelCtx.beginPath();
+            wheelCtx.arc(centerX, centerY, radius + 8, 0, 2 * Math.PI);
+            wheelCtx.lineWidth = 2;
+            wheelCtx.strokeStyle = "rgba(0,0,0,0.1)";
+            wheelCtx.stroke();
+
+            // 4. Lights
+            const dotCount = 24; 
+            const dotRadius = radius; 
+            for (let j = 0; j < dotCount; j++) {
+                const dotAngle = (j / dotCount) * 2 * Math.PI;
+                const dx = centerX + Math.cos(dotAngle) * dotRadius;
+                const dy = centerY + Math.sin(dotAngle) * dotRadius;
+                
+                wheelCtx.beginPath();
+                wheelCtx.arc(dx, dy, 4, 0, 2 * Math.PI);
+                wheelCtx.fillStyle = j % 2 === 0 ? "#FFD700" : "#FF6B6B";
+                wheelCtx.fill();
+            }
+
+            wheelCtx.restore();
+        }
+
+        function spinWheel() {
+            if (isSpinningWheel) return;
+            
+            initAudioContext(); 
+            isSpinningWheel = true;
+            spinBtn.disabled = true;
+            
+            const spinAngle = (5 * 2 * Math.PI) + (Math.random() * 2 * Math.PI);
+            const duration = 5000; 
+            const startAngle = currentRotation;
+            const startTime = performance.now();
+            
+            lastTickAngle = startAngle;
+
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                if (elapsed < duration) {
+                    const progress = elapsed / duration;
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                    
+                    const newRotation = startAngle + (spinAngle * easeOut);
+                    
+                    const delta = newRotation - lastTickAngle;
+                    const arcSize = (2 * Math.PI) / names.length;
+                    
+                    if (delta >= arcSize) {
+                        playWheelTick();
+                        lastTickAngle = newRotation - (delta % arcSize); 
+                    } else if (newRotation - lastTickAngle > arcSize) {
+                         playWheelTick();
+                         lastTickAngle += arcSize;
+                    }
+
+                    currentRotation = newRotation;
+                    drawWheel();
+                    requestAnimationFrame(animate);
+                } else {
+                    currentRotation = startAngle + spinAngle;
+                    drawWheel();
+                    isSpinningWheel = false;
+                    spinBtn.disabled = false;
+                    
+                    const normalizedRotation = currentRotation % (2 * Math.PI);
+                    const numSegments = names.length;
+                    const arcSize = (2 * Math.PI) / numSegments;
+                    
+                    let pointerAngle = (3 * Math.PI / 2 - normalizedRotation) % (2 * Math.PI);
+                    if (pointerAngle < 0) pointerAngle += 2 * Math.PI;
+                    
+                    const winnerIndex = Math.floor(pointerAngle / arcSize);
+                    const winnerName = names[winnerIndex];
+                    const winnerEmoji = cuteEmojis[winnerIndex % cuteEmojis.length];
+
+                    playSound('win');
+                    fireConfetti();
+                    
+                    showModal(`
+                        <div class="flex flex-col items-center">
+                            <div class="text-xl font-bold text-gray-700 mb-3">恭喜！指針指向了：</div>
+                            <div class="text-4xl font-black text-indigo-600 animate-pop">🎉 ${winnerEmoji} ${winnerName} 🎉</div>
+                        </div>
+                    `);
+                    addToHistory(`🎯 ${winnerEmoji} ${winnerName}`);
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // View Switching
         function showSingleView() {
             singleView.classList.remove('hidden');
             singleView.classList.add('flex');
             groupView.classList.add('hidden');
             groupView.classList.remove('flex');
+            wheelView.classList.add('hidden');
+            wheelView.classList.remove('flex');
         }
 
         function showGroupView() {
@@ -633,6 +1036,17 @@
             singleView.classList.remove('flex');
             groupView.classList.remove('hidden');
             groupView.classList.add('flex');
+            wheelView.classList.add('hidden');
+            wheelView.classList.remove('flex');
+        }
+        
+        function showWheelView() {
+            singleView.classList.add('hidden');
+            singleView.classList.remove('flex');
+            groupView.classList.add('hidden');
+            groupView.classList.remove('flex');
+            wheelView.classList.remove('hidden');
+            wheelView.classList.add('flex');
         }
 
         function copyGroups() {
@@ -647,7 +1061,6 @@
                 navigator.clipboard.writeText(text).then(() => {
                     showModal("分組結果已複製到剪貼簿！");
                 }).catch(err => {
-                    console.warn('Clipboard API failed', err);
                     fallbackCopy(text);
                 });
             } else {
@@ -671,7 +1084,7 @@
             document.body.removeChild(textArea);
         }
 
-        // --- 特效 ---
+        // --- Confetti ---
         function fireConfetti() {
             var duration = 2 * 1000;
             var animationEnd = Date.now() + duration;

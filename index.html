@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸運點名神器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=LXGW+WenKai+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .signature-font {
+            font-family: 'LXGW WenKai TC', serif;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        .name-display {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.1s;
+        }
+        .glow-btn {
+            transition: all 0.3s ease;
+        }
+        .glow-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .glow-btn:active {
+            transform: translateY(1px);
+        }
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb:hover { background: #555; }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .group-card { animation: slideIn 0.4s ease-out forwards; opacity: 0; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 音效按鈕樣式 */
+        .sound-btn.active svg { fill: currentColor; }
+        .sound-btn.muted svg { fill: none; opacity: 0.5; }
+
+        /* Modal 動畫 */
+        .modal-enter { opacity: 0; transform: scale(0.9); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
+        .modal-exit { opacity: 1; transform: scale(1); }
+        .modal-exit-active { opacity: 0; transform: scale(0.9); transition: all 0.2s ease-in; }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <!-- 音效資源 -->
+    <audio id="sound-roll" loop src="https://assets.mixkit.co/active_storage/sfx/2044/2044-preview.mp3"></audio>
+    <audio id="sound-win" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+
+    <div class="glass-panel w-full max-w-6xl rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-2xl h-[90vh] md:h-auto md:min-h-[700px]">
+        
+        <!-- 左側：控制與輸入區 -->
+        <div class="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 overflow-y-auto">
+            <h1 class="text-2xl font-black text-indigo-600 mb-4 flex items-center gap-2 cursor-pointer select-none" onclick="window.location.reload()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                點名神器
+            </h1>
+            
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-sm font-bold text-gray-500 uppercase tracking-wide">名單列表 (<span id="count">0</span> 人)</label>
+                <button onclick="clearList()" class="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition">清空</button>
+            </div>
+            
+            <textarea id="inputNames" class="flex-1 w-full min-h-[150px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none text-gray-700 bg-white shadow-inner mb-4 text-base" placeholder="請在此輸入名字&#10;每行一個名字&#10;例如：&#10;王小明&#10;李大華&#10;張三"></textarea>
+
+            <div class="space-y-4 mt-auto">
+                <!-- 抽籤設定 -->
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-xs font-bold text-gray-400 uppercase mb-2 flex justify-between items-center">
+                        單人抽籤設定
+                        <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">空白鍵可開始</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700 font-bold">抽中後移除名單</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="removeAfterPick" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 分組設定 -->
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-xs font-bold text-gray-400 uppercase mb-2">團體分組模式</div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-700 font-bold whitespace-nowrap">分為</span>
+                        <input type="number" id="groupCount" min="2" value="2" class="w-16 p-1 text-center border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-base">
+                        <span class="text-sm text-gray-700 font-bold">組</span>
+                        <button onclick="generateGroups()" class="ml-auto bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded text-sm font-bold transition">立即分組</button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
+                    <button onclick="addDefaultList()" class="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold transition">載入範例</button>
+                    <button onclick="resetList()" class="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold transition">重置名單</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：顯示與執行區 -->
+        <!-- 修正：在 md (電腦版) 尺寸下，將上方 padding 增加至 pt-20，確保不會遮擋功能按鈕 -->
+        <div class="w-full md:w-2/3 px-4 pb-4 pt-16 md:px-8 md:pb-8 md:pt-20 flex flex-col bg-white relative overflow-y-auto">
+            
+            <!-- 工具列 (絕對定位於右上角) -->
+            <div class="absolute top-4 right-4 z-10 flex gap-2">
+                <button id="wakeLockBtn" onclick="toggleWakeLock()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition tooltip-container relative group" title="防止螢幕休眠">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <!-- Tooltip -->
+                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">螢幕常亮</span>
+                </button>
+                <button id="soundBtn" onclick="toggleSound()" class="sound-btn active p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition relative group" title="開關音效">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">開關音效</span>
+                </button>
+            </div>
+
+            <!-- 單人抽籤視圖 (預設顯示) -->
+            <div id="singleView" class="flex-1 flex flex-col items-center justify-center w-full transition-opacity duration-300">
+                <div id="resultCard" class="relative w-full aspect-video md:aspect-auto md:h-64 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border-2 border-indigo-100 mb-8 p-4 text-center overflow-hidden">
+                    <div id="displayName" class="name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all">
+                        READY?
+                    </div>
+                    <div id="statusText" class="absolute bottom-2 text-sm text-gray-400 font-medium tracking-widest uppercase">等待開始</div>
+                </div>
+
+                <button id="actionBtn" onclick="toggleRoll()" class="glow-btn w-full max-w-sm py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-2xl font-bold tracking-wider shadow-lg hover:shadow-indigo-500/50 flex items-center justify-center gap-3">
+                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="btnText">開始點名</span>
+                </button>
+
+                <!-- 歷史紀錄區 -->
+                <div class="mt-8 w-full max-w-lg">
+                    <div class="flex justify-between items-end mb-2 border-b border-gray-100 pb-1">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">本輪已抽出 (<span id="historyCount">0</span>)</span>
+                        <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500">清除紀錄</button>
+                    </div>
+                    <div id="historyList" class="flex flex-wrap gap-2 justify-center min-h-[2rem] max-h-[100px] overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-400 italic py-1">尚未開始點名</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分組結果視圖 (預設隱藏) -->
+            <div id="groupView" class="hidden flex-col w-full flex-1">
+                <!-- 標題列 -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-100 pb-4 gap-4 md:gap-0">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        分組結果
+                    </h2>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="copyGroups()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition flex items-center gap-1 font-bold">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            複製
+                        </button>
+                        <button onclick="showSingleView()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">
+                            返回單人抽籤
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 overflow-y-auto max-h-[60vh]">
+                    <!-- 分組結果將顯示於此 -->
+                </div>
+            </div>
+
+            <!-- Footer Signature -->
+            <div class="mt-auto pt-4 text-center w-full">
+                <p class="text-sm text-gray-300 font-medium tracking-widest hover:text-indigo-300 transition-colors cursor-default signature-font">
+                    Design by Sophia
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Custom Modal Structure -->
+    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none" style="backdrop-filter: blur(2px);">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-90">
+            <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-2">提示</h3>
+            <p id="modalMessage" class="text-gray-600 mb-6 text-sm leading-relaxed">Message goes here</p>
+            <div id="modalActions" class="flex justify-end gap-3">
+                <!-- Buttons injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 狀態變數
+        let names = [];
+        let isRolling = false;
+        let rollInterval;
+        let originalList = []; 
+        let history = []; 
+        let soundEnabled = true;
+        let wakeLock = null;
+
+        // Emoji 庫 (動物與水果)
+        const cuteEmojis = [
+            "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
+            "🐔","🐧","🐦","🦆","🦄","🦋","🐢","🐬","🐳","🦖","🦕","🐘","🦒",
+            "🍎","🍊","🍋","🍌","🍉","🍇","🍓","🍒","🍑","🍍","🥥","🥝","🥑","🌽","🥕","🍄"
+        ];
+
+        function getRandomEmoji() {
+            return cuteEmojis[Math.floor(Math.random() * cuteEmojis.length)];
+        }
+
+        // DOM 元素
+        const textarea = document.getElementById('inputNames');
+        const countDisplay = document.getElementById('count');
+        const soundRoll = document.getElementById('sound-roll');
+        const soundWin = document.getElementById('sound-win');
+        const soundBtn = document.getElementById('soundBtn');
+        const wakeLockBtn = document.getElementById('wakeLockBtn');
+        
+        // Modal Elements
+        const modal = document.getElementById('customModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalActions = document.getElementById('modalActions');
+
+        // Single View Elements
+        const singleView = document.getElementById('singleView');
+        const displayName = document.getElementById('displayName');
+        const statusText = document.getElementById('statusText');
+        const actionBtn = document.getElementById('actionBtn');
+        const btnText = document.getElementById('btnText');
+        const removeCheckbox = document.getElementById('removeAfterPick');
+        const historyList = document.getElementById('historyList');
+        const historyCount = document.getElementById('historyCount');
+        const resultCard = document.getElementById('resultCard');
+
+        // Group View Elements
+        const groupView = document.getElementById('groupView');
+        const groupsContainer = document.getElementById('groupsContainer');
+        const groupCountInput = document.getElementById('groupCount');
+
+        // 初始化
+        window.onload = () => {
+            const saved = localStorage.getItem('namesList');
+            if (saved) {
+                textarea.value = saved;
+            } else {
+                addDefaultList();
+            }
+            updateCount();
+            
+            soundRoll.volume = 0.5;
+            soundWin.volume = 0.5;
+        };
+
+        // Modal System
+        function showModal(message, type = 'alert', onConfirm = null) {
+            modalMessage.innerText = message;
+            modalActions.innerHTML = '';
+            
+            modal.classList.remove('hidden', 'pointer-events-none', 'opacity-0');
+            modal.querySelector('div').classList.remove('scale-90');
+            modal.querySelector('div').classList.add('scale-100');
+
+            if (type === 'confirm') {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = "px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition text-sm";
+                cancelBtn.innerText = "取消";
+                cancelBtn.onclick = closeModal;
+                
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = "px-4 py-2 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-lg transition text-sm shadow-md shadow-indigo-200";
+                confirmBtn.innerText = "確定";
+                confirmBtn.onclick = () => {
+                    closeModal();
+                    if (onConfirm) onConfirm();
+                };
+                
+                modalActions.appendChild(cancelBtn);
+                modalActions.appendChild(confirmBtn);
+            } else {
+                const okBtn = document.createElement('button');
+                okBtn.className = "px-4 py-2 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-lg transition text-sm shadow-md shadow-indigo-200";
+                okBtn.innerText = "確定";
+                okBtn.onclick = closeModal;
+                modalActions.appendChild(okBtn);
+            }
+        }
+
+        function closeModal() {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-90');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // 監聽鍵盤
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement === textarea || document.activeElement === groupCountInput) return;
+            if (!modal.classList.contains('hidden')) return; 
+
+            if (e.code === 'Space') {
+                e.preventDefault(); 
+                if (!groupView.classList.contains('hidden')) return; 
+                toggleRoll();
+            }
+        });
+
+        textarea.addEventListener('input', () => {
+            updateCount();
+            saveToStorage();
+        });
+
+        function updateCount() {
+            const text = textarea.value.trim();
+            if (!text) {
+                names = [];
+            } else {
+                names = text.split('\n').map(n => n.trim()).filter(n => n !== '');
+            }
+            countDisplay.innerText = names.length;
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('namesList', textarea.value);
+        }
+
+        function addDefaultList() {
+            const defaults = "愛因斯坦\n牛頓\n居里夫人\n達爾文\n特斯拉\n伽利略\n霍金\n諾貝爾\n歐幾里得\n阿基米德";
+            textarea.value = defaults;
+            updateCount();
+            saveToStorage();
+            originalList = defaults.split('\n').filter(n => n.trim() !== '');
+        }
+
+        function clearList() {
+            showModal('確定要清空名單嗎？此動作無法復原。', 'confirm', () => {
+                textarea.value = '';
+                updateCount();
+                saveToStorage();
+                resetUI();
+                clearHistory();
+            });
+        }
+
+        function resetList() {
+             textarea.value = localStorage.getItem('namesList') || "";
+             updateCount();
+             showModal("名單已重置為最後保存的狀態。");
+        }
+
+        function resetUI() {
+            displayName.innerText = "READY?";
+            displayName.className = "name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all";
+            statusText.innerText = "等待開始";
+            showSingleView();
+        }
+
+        // --- 音效與設定 ---
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundBtn.classList.remove('muted');
+                soundBtn.classList.add('active', 'bg-indigo-50', 'text-indigo-600');
+                soundBtn.classList.remove('bg-gray-100', 'text-gray-400');
+            } else {
+                soundBtn.classList.add('muted');
+                soundBtn.classList.remove('active', 'bg-indigo-50', 'text-indigo-600');
+                soundBtn.classList.add('bg-gray-100', 'text-gray-400');
+                soundRoll.pause();
+                soundRoll.currentTime = 0;
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            if (type === 'roll') {
+                soundRoll.currentTime = 0;
+                soundRoll.play().catch(e => console.log('Audio play failed', e));
+            } else if (type === 'win') {
+                soundRoll.pause();
+                soundWin.currentTime = 0;
+                soundWin.play().catch(e => console.log('Audio play failed', e));
+            }
+        }
+
+        async function toggleWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    if (wakeLock === null) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        wakeLockBtn.classList.add('bg-yellow-100', 'text-yellow-600');
+                        wakeLockBtn.classList.remove('bg-gray-100', 'text-gray-500');
+                        statusText.innerText = "螢幕將保持常亮";
+                        wakeLock.addEventListener('release', () => {
+                            if(wakeLock === null) {
+                                wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
+                                wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
+                                statusText.innerText = "已解除螢幕常亮";
+                            }
+                        });
+                    } else {
+                        await wakeLock.release();
+                        wakeLock = null;
+                        wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
+                        wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
+                        statusText.innerText = "已解除螢幕常亮";
+                    }
+                } catch (err) {
+                    console.warn(`Wake Lock Error: ${err.name}, ${err.message}`);
+                    if (err.name === 'NotAllowedError') {
+                        showModal("無法啟用防休眠：\n當前瀏覽器權限設定不允許此功能。\n(這通常發生在特定視窗環境或省電模式下)");
+                    } else {
+                        showModal("無法啟用防休眠功能");
+                    }
+                    wakeLock = null;
+                    wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
+                    wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
+                }
+            } else {
+                showModal("您的瀏覽器不支援防休眠功能");
+            }
+        }
+
+        // --- 單人抽籤功能 ---
+
+        function toggleRoll() {
+            updateCount(); 
+
+            if (names.length === 0) {
+                showModal("請先輸入名單！");
+                textarea.focus();
+                return;
+            }
+
+            if (isRolling) {
+                stopRoll();
+            } else {
+                startRoll();
+            }
+        }
+
+        function startRoll() {
+            isRolling = true;
+            showSingleView(); 
+
+            btnText.innerText = "停止 (Space)";
+            actionBtn.classList.remove('from-indigo-600', 'to-purple-600');
+            actionBtn.classList.add('from-pink-500', 'to-rose-500');
+            statusText.innerText = "正在抽選中...";
+            resultCard.classList.remove('border-indigo-100');
+            resultCard.classList.add('border-indigo-400', 'shadow-inner');
+            
+            displayName.classList.remove('text-gray-300');
+            displayName.classList.add('text-indigo-600');
+            displayName.classList.remove('animate-pop', 'text-red-600');
+            
+            playSound('roll');
+
+            let speed = 50;
+            rollInterval = setInterval(() => {
+                const randomName = names[Math.floor(Math.random() * names.length)];
+                // 抽籤過程加入隨機 Emoji
+                displayName.innerText = getRandomEmoji() + ' ' + randomName;
+            }, speed);
+        }
+
+        function stopRoll() {
+            clearInterval(rollInterval);
+            isRolling = false;
+
+            const winnerIndex = Math.floor(Math.random() * names.length);
+            const winnerName = names[winnerIndex];
+            
+            // 最終結果加上 Emoji
+            const winnerEmoji = getRandomEmoji();
+            const finalText = `${winnerEmoji} ${winnerName}`;
+            
+            displayName.innerText = finalText;
+
+            statusText.innerText = "恭喜中獎！";
+            btnText.innerText = "開始點名";
+            actionBtn.classList.add('from-indigo-600', 'to-purple-600');
+            actionBtn.classList.remove('from-pink-500', 'to-rose-500');
+            
+            displayName.classList.add('animate-pop', 'text-red-600');
+            resultCard.classList.add('border-indigo-100');
+            resultCard.classList.remove('border-indigo-400', 'shadow-inner');
+
+            playSound('win');
+            addToHistory(finalText); // 記錄包含 Emoji 的名字
+            fireConfetti();
+
+            if (removeCheckbox.checked) {
+                setTimeout(() => {
+                    removeName(winnerIndex);
+                }, 1500);
+            }
+        }
+
+        function removeName(index) {
+            const removed = names.splice(index, 1);
+            textarea.value = names.join('\n');
+            updateCount();
+            saveToStorage();
+            statusText.innerText = `已移除: ${removed[0]} (剩餘 ${names.length} 人)`;
+        }
+
+        function addToHistory(name) {
+            history.push(name);
+            renderHistory();
+        }
+
+        function clearHistory() {
+            history = [];
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyCount.innerText = history.length;
+            if (history.length === 0) {
+                historyList.innerHTML = '<span class="text-xs text-gray-400 italic py-1">尚未開始點名</span>';
+                return;
+            }
+            historyList.innerHTML = '';
+            [...history].reverse().forEach(name => {
+                const tag = document.createElement('span');
+                tag.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 animate-pop";
+                tag.innerText = name;
+                historyList.appendChild(tag);
+            });
+        }
+
+        // --- 分組功能 ---
+
+        function generateGroups() {
+            updateCount();
+            if (names.length === 0) {
+                showModal("請先輸入名單！");
+                return;
+            }
+
+            const numGroups = parseInt(groupCountInput.value);
+            if (isNaN(numGroups) || numGroups < 2) {
+                showModal("請至少分成 2 組！");
+                return;
+            }
+            
+            if (numGroups > names.length) {
+                showModal("組數不能多於人數！");
+                return;
+            }
+
+            let shuffled = [...names];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            let groups = Array.from({ length: numGroups }, () => []);
+            shuffled.forEach((name, index) => {
+                // 分組時也加上隨機 Emoji
+                groups[index % numGroups].push(`${getRandomEmoji()} ${name}`);
+            });
+
+            renderGroups(groups);
+            showGroupView();
+            fireConfetti();
+        }
+
+        function renderGroups(groups) {
+            groupsContainer.innerHTML = '';
+            groups.forEach((group, index) => {
+                const card = document.createElement('div');
+                card.className = 'group-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition p-4 flex flex-col';
+                card.style.animationDelay = `${index * 0.1}s`;
+                
+                const title = document.createElement('h3');
+                title.className = 'text-lg font-bold text-indigo-600 mb-3 border-b border-gray-100 pb-2 flex justify-between';
+                title.innerHTML = `<span>第 ${index + 1} 組</span> <span class="text-xs bg-indigo-50 text-indigo-400 px-2 py-1 rounded-full">${group.length}人</span>`;
+                
+                const list = document.createElement('ul');
+                list.className = 'text-gray-700 space-y-1 text-sm flex-1 font-medium';
+                group.forEach(name => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center gap-2';
+                    li.innerHTML = `<span class="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>${name}`; // 圓點改為直接顯示名字（因為名字現在包含了 Emoji）
+                    list.appendChild(li);
+                });
+
+                card.appendChild(title);
+                card.appendChild(list);
+                groupsContainer.appendChild(card);
+            });
+        }
+
+        function showSingleView() {
+            singleView.classList.remove('hidden');
+            singleView.classList.add('flex');
+            groupView.classList.add('hidden');
+            groupView.classList.remove('flex');
+        }
+
+        function showGroupView() {
+            singleView.classList.add('hidden');
+            singleView.classList.remove('flex');
+            groupView.classList.remove('hidden');
+            groupView.classList.add('flex');
+        }
+
+        function copyGroups() {
+            const cards = groupsContainer.querySelectorAll('.group-card');
+            let text = "";
+            cards.forEach((card, index) => {
+                const names = Array.from(card.querySelectorAll('li')).map(li => li.innerText).join(', ');
+                text += `第 ${index + 1} 組: ${names}\n`;
+            });
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showModal("分組結果已複製到剪貼簿！");
+                }).catch(err => {
+                    console.warn('Clipboard API failed', err);
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+        
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showModal("分組結果已複製到剪貼簿！");
+            } catch (err) {
+                showModal("複製失敗，請手動複製。");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // --- 特效 ---
+        function fireConfetti() {
+            var duration = 2 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+            var random = function(min, max) { return Math.random() * (max - min) + min; }
+
+            var interval = setInterval(function() {
+              var timeLeft = animationEnd - Date.now();
+              if (timeLeft <= 0) return clearInterval(interval);
+              var particleCount = 50 * (timeLeft / duration);
+              confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.1, 0.3), y: Math.random() - 0.2 } }));
+              confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+    </script>
+</body>
+</html>

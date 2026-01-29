@@ -47,31 +47,58 @@
         .group-card { animation: slideIn 0.4s ease-out forwards; opacity: 0; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 音效按鈕樣式 */
         .sound-btn.active svg { fill: currentColor; }
         .sound-btn.muted svg { fill: none; opacity: 0.5; }
 
-        /* Modal 動畫 */
         .modal-enter { opacity: 0; transform: scale(0.9); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
         .modal-exit { opacity: 1; transform: scale(1); }
         .modal-exit-active { opacity: 0; transform: scale(0.9); transition: all 0.2s ease-in; }
 
-        /* 轉盤陰影效果 */
         .wheel-shadow { filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3)); }
         .pointer-shadow { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
+
+        .score-pop { animation: scorePop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes scorePop { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+        .timer-circle {
+            transform: rotate(-90deg);
+            transition: stroke-dashoffset 1s linear;
+        }
+        .timer-text {
+            font-variant-numeric: tabular-nums;
+        }
+        .timer-danger {
+            animation: pulse-red 1s infinite alternate;
+        }
+        @keyframes pulse-red {
+            from { color: #f43f5e; }
+            to { color: #9f1239; transform: scale(1.05); }
+        }
+
+        /* 修正規劃：被抽過的人員改為「高亮變粗」樣式，不再變灰 */
+        .picked-member {
+            color: #be123c !important; /* Rose-700 */
+            background-color: #fff1f2; /* Rose-50 */
+            font-weight: 900 !important;
+            border-radius: 4px;
+            padding: 2px 4px;
+            box-shadow: 0 0 0 1px #fecdd3; /* Rose-200 border */
+            transition: all 0.5s ease;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
 
     <!-- 音效資源 -->
     <audio id="sound-roll" loop src="https://assets.mixkit.co/active_storage/sfx/2044/2044-preview.mp3"></audio>
-    <audio id="sound-win" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+    <audio id="sound-win" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+    <audio id="sound-alarm" src="https://assets.mixkit.co/active_storage/sfx/1004/1004-preview.mp3"></audio>
 
     <!-- Main Container -->
     <div class="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col shadow-2xl h-[90vh] md:h-auto md:min-h-[700px]">
         
-        <!-- Header -->
+        <!-- Header & Top Toolbar -->
         <div class="flex justify-between items-center p-4 md:px-8 border-b border-gray-100 bg-white/50">
             <h1 class="text-2xl font-black text-indigo-600 flex items-center gap-2 cursor-pointer select-none" onclick="window.location.reload()">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -81,25 +108,25 @@
             </h1>
             
             <div class="flex gap-2">
-                <button onclick="openEditModal()" class="p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition tooltip-container relative group" title="編輯名單">
+                <button onclick="showTimerView()" class="p-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 transition tooltip-container relative group" title="計時器">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+                <button onclick="openEditModal()" class="p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition relative group" title="編輯名單">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
-                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">編輯名單</span>
                 </button>
-
-                <button id="wakeLockBtn" onclick="toggleWakeLock()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition tooltip-container relative group" title="防止螢幕休眠">
+                <button id="wakeLockBtn" onclick="toggleWakeLock()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition relative group" title="防止螢幕休眠">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
-                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">螢幕常亮</span>
                 </button>
-
                 <button id="soundBtn" onclick="toggleSound()" class="sound-btn active p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition relative group" title="開關音效">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.414z" clip-rule="evenodd" />
                     </svg>
-                    <span class="absolute right-0 top-full mt-1 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">開關音效</span>
                 </button>
             </div>
         </div>
@@ -110,25 +137,19 @@
             <!-- 單人抽籤視圖 -->
             <div id="singleView" class="flex-1 flex flex-col items-center justify-center w-full transition-opacity duration-300">
                 <div id="resultCard" class="relative w-full aspect-video md:aspect-auto md:h-64 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border-2 border-indigo-100 mb-8 p-4 text-center overflow-hidden">
-                    <div id="displayName" class="name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all">
-                        READY?
-                    </div>
+                    <div id="displayName" class="name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all">READY?</div>
                     <div id="statusText" class="absolute bottom-2 text-sm text-gray-400 font-medium tracking-widest uppercase">等待開始</div>
                 </div>
 
                 <button id="actionBtn" onclick="toggleRoll()" class="glow-btn w-full max-w-sm py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-2xl font-bold tracking-wider shadow-lg hover:shadow-indigo-500/50 flex items-center justify-center gap-3">
-                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <span id="btnText">開始點名</span>
                 </button>
 
-                <!-- 歷史紀錄 -->
-                <div class="mt-8 w-full max-w-lg">
+                <div class="mt-8 w-full max-w-lg text-center">
                     <div class="flex justify-between items-end mb-2 border-b border-gray-100 pb-1">
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">本輪已抽出 (<span id="historyCount">0</span>)</span>
-                        <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500">清除紀錄</button>
+                        <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500 transition-colors">清除紀錄</button>
                     </div>
                     <div id="historyList" class="flex flex-wrap gap-2 justify-center min-h-[2rem] max-h-[100px] overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-100">
                         <span class="text-xs text-gray-400 italic py-1">尚未開始點名</span>
@@ -136,79 +157,89 @@
                 </div>
             </div>
 
+            <!-- 計時器視圖 -->
+            <div id="timerView" class="hidden flex-1 flex flex-col items-center justify-center w-full transition-opacity duration-300">
+                <div class="w-full flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">倒數計時器</h2>
+                    <div class="flex gap-2">
+                        <button id="timerToScoreBtn" onclick="showScoreView()" class="px-3 py-1.5 text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg transition font-bold hidden">返回計分板</button>
+                        <button onclick="showSingleView()" class="px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">返回抽籤</button>
+                    </div>
+                </div>
+                <div class="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
+                    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" stroke="#f1f5f9" stroke-width="6" fill="none" />
+                        <circle id="timerProgress" cx="50" cy="50" r="45" stroke="#6366f1" stroke-width="6" fill="none" stroke-dasharray="282.7" stroke-dashoffset="0" stroke-linecap="round" class="timer-circle" />
+                    </svg>
+                    <div id="timerDisplay" class="timer-text text-6xl md:text-7xl font-black text-gray-800">01:00</div>
+                </div>
+                <div class="flex flex-wrap justify-center gap-2 mt-8 mb-6">
+                    <button onclick="setTimer(60)" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-sm font-bold hover:bg-indigo-100 transition">1 分鐘</button>
+                    <button onclick="setTimer(180)" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-sm font-bold hover:bg-indigo-100 transition">3 分鐘</button>
+                    <button onclick="setTimer(300)" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-sm font-bold hover:bg-indigo-100 transition">5 分鐘</button>
+                    <button onclick="setTimer(600)" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-sm font-bold hover:bg-indigo-100 transition">10 分鐘</button>
+                </div>
+                <div class="flex gap-4">
+                    <button id="timerToggleBtn" onclick="toggleTimer()" class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95 transition">開始</button>
+                    <button onclick="resetTimer()" class="px-8 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 active:scale-95 transition">重置</button>
+                </div>
+            </div>
+
             <!-- 分組結果視圖 -->
             <div id="groupView" class="hidden flex-col w-full flex-1">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-100 pb-4 gap-4 md:gap-0">
                     <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        分組結果
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" /></svg>分組結果
                     </h2>
                     <div class="flex gap-2 w-full md:w-auto">
-                        <button onclick="copyGroups()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition flex items-center gap-1 font-bold">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                            </svg>
-                            複製
-                        </button>
-                        <button onclick="showSingleView()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">
-                            返回單人抽籤
-                        </button>
+                        <button onclick="showScoreView()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-lg transition flex items-center gap-1 font-bold">切換計分板</button>
+                        <button onclick="copyGroups()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition flex items-center gap-1 font-bold">複製</button>
+                        <button onclick="showSingleView()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">返回抽籤</button>
                     </div>
                 </div>
-                
-                <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 overflow-y-auto max-h-[60vh]">
-                    <!-- 分組結果將顯示於此 -->
+                <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 overflow-y-auto max-h-[60vh]"></div>
+            </div>
+
+            <!-- 計分板視圖 -->
+            <div id="scoreView" class="hidden flex-col w-full flex-1">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-100 pb-4 gap-4 md:gap-0">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>分組計分板
+                    </h2>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="resetScores()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition flex items-center gap-1 font-bold">分數歸零</button>
+                        <button onclick="showGroupView()" class="flex-1 md:flex-none justify-center px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">返回清單</button>
+                    </div>
                 </div>
+                <div id="scoreContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 overflow-y-auto max-h-[60vh]"></div>
             </div>
 
             <!-- 轉盤視圖 -->
             <div id="wheelView" class="hidden flex-col items-center justify-center w-full flex-1 relative">
                  <div class="w-full flex justify-between items-center mb-4">
                      <h2 class="text-2xl font-bold text-gray-800">幸運轉盤</h2>
-                     <button onclick="showSingleView()" class="px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">返回單人抽籤</button>
+                     <button onclick="showSingleView()" class="px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition font-bold">返回抽籤</button>
                  </div>
-                 
                  <div class="relative w-full max-w-[450px] aspect-square flex items-center justify-center wheel-shadow rounded-full">
                     <canvas id="wheelCanvas" width="500" height="500" class="w-full h-full transform transition-transform duration-[4000ms] ease-out"></canvas>
-                    
-                    <!-- 美化版指針 (SVG) -->
-                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 w-12 h-14 z-20 pointer-shadow">
-                        <svg viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M20 50L0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10L20 50Z" fill="#EF4444"/>
-                            <path d="M20 50L0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10L20 50Z" stroke="white" stroke-width="2"/>
-                            <circle cx="20" cy="12" r="6" fill="#7F1D1D"/>
-                        </svg>
-                    </div>
-                    
-                    <!-- 中心按鈕 -->
-                    <button onclick="spinWheel()" id="spinBtn" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-b from-white to-gray-200 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] border-[6px] border-indigo-500 flex items-center justify-center text-indigo-600 font-black text-xl z-10 hover:scale-105 transition active:scale-95 active:shadow-inner">
-                        GO
-                    </button>
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 w-12 h-14 z-20 pointer-shadow"><svg viewBox="0 0 40 50" fill="none"><path d="M20 50L0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10L20 50Z" fill="#EF4444"/><path d="M20 50L0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10L20 50Z" stroke="white" stroke-width="2"/><circle cx="20" cy="12" r="6" fill="#7F1D1D"/></svg></div>
+                    <button onclick="spinWheel()" id="spinBtn" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-b from-white to-gray-200 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] border-[6px] border-indigo-500 flex items-center justify-center text-indigo-600 font-black text-xl z-10 hover:scale-105 transition active:scale-95 active:shadow-inner">GO</button>
                  </div>
             </div>
-
         </div>
 
-        <!-- Integrated Footer Control Bar -->
+        <!-- Footer Control Bar -->
         <div class="bg-gray-50/90 backdrop-blur border-t border-gray-200 p-4 md:p-6">
             <div class="flex flex-col md:flex-row gap-4 justify-between items-center bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
-                
-                <!-- 1. Mode: Keep/Remove Toggle (Updated with Buttons, Default: Remove) -->
                 <div class="flex items-center gap-3 w-full md:w-auto justify-center md:justify-start px-2">
                     <span class="text-sm font-bold text-gray-500 whitespace-nowrap">抽中後:</span>
                     <div class="flex bg-gray-100 p-1 rounded-lg">
                         <button id="btnKeep" onclick="setMode('keep')" class="px-3 py-1.5 text-sm font-bold rounded-md transition-all text-gray-500">保留名單</button>
                         <button id="btnRemove" onclick="setMode('remove')" class="px-3 py-1.5 text-sm font-bold rounded-md transition-all bg-white text-indigo-600 shadow-sm">移除名單</button>
                     </div>
-                    <!-- Hidden Checkbox for logic compatibility (Default Checked) -->
                     <input type="checkbox" id="removeAfterPick" class="hidden" checked>
                 </div>
-
                 <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
-
-                <!-- 2. Grouping Mode -->
                 <div class="flex items-center gap-2 w-full md:w-auto justify-center">
                     <span class="text-sm font-bold text-gray-500 whitespace-nowrap">分組:</span>
                     <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
@@ -217,138 +248,73 @@
                         <button onclick="generateGroups()" class="bg-white hover:bg-gray-50 text-indigo-600 px-3 py-1.5 text-sm font-bold transition whitespace-nowrap">執行</button>
                     </div>
                 </div>
-
                 <div class="w-px h-8 bg-gray-200 hidden md:block"></div>
-
-                <!-- 3. Wheel Mode -->
                 <div class="w-full md:w-auto flex justify-center md:justify-end">
                     <button onclick="initWheelMode()" class="flex items-center gap-2 text-sm font-bold text-orange-500 hover:text-orange-600 transition px-2">
-                        <div class="p-1.5 bg-orange-100 rounded-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                            </svg>
-                        </div>
+                        <div class="p-1.5 bg-orange-100 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg></div>
                         <span>幸運轉盤</span>
                     </button>
                 </div>
-
             </div>
-            
-            <!-- Signature -->
-            <div class="mt-4 text-center w-full">
-                <p class="text-sm text-gray-300 font-medium tracking-widest hover:text-indigo-300 transition-colors cursor-default signature-font">
-                    Design by Sophia
-                </p>
-            </div>
+            <div class="mt-4 text-center w-full"><p class="text-sm text-gray-300 font-medium tracking-widest hover:text-indigo-300 transition-colors cursor-default signature-font">Design by Sophia Wong</p></div>
         </div>
     </div>
 
-    <!-- Edit List Modal -->
+    <!-- Modals -->
     <div id="editModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] transform transition-all scale-90">
-            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
-                <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    編輯名單
-                </h3>
-                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl"><h3 class="text-xl font-bold text-gray-800">編輯名單</h3><button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
             <div class="p-5 flex-1 overflow-hidden flex flex-col">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-sm font-bold text-gray-500 uppercase tracking-wide">名單內容 (<span id="count">0</span> 人)</label>
-                    <div class="flex gap-2">
-                        <button onclick="exportList()" class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded transition flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            匯出
-                        </button>
-                        <label class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded transition flex items-center gap-1 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                            匯入
-                            <input type="file" id="fileInput" accept=".json,.txt" class="hidden" onchange="importList(this)">
-                        </label>
-                    </div>
-                </div>
-                <textarea id="inputNames" class="flex-1 w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none text-gray-700 bg-gray-50 shadow-inner text-base" placeholder="請在此輸入名字&#10;每行一個名字"></textarea>
+                <div class="flex justify-between items-center mb-2"><label class="text-sm font-bold text-gray-500 uppercase tracking-wide">名單內容 (<span id="count">0</span> 人)</label>
+                <div class="flex gap-2"><button onclick="exportList()" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded transition">匯出</button><label class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded transition cursor-pointer">匯入<input type="file" id="fileInput" accept=".json,.txt" class="hidden" onchange="importList(this)"></label></div></div>
+                <textarea id="inputNames" class="flex-1 w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-gray-700 bg-gray-50 shadow-inner text-base" placeholder="每行一個名字"></textarea>
             </div>
-
-            <div class="p-5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between gap-3">
-                <div class="flex gap-2">
-                    <button onclick="addDefaultList()" class="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-sm font-medium transition shadow-sm">載入範例</button>
-                    <button onclick="clearList()" class="px-3 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-lg text-sm font-medium transition shadow-sm">清空</button>
-                </div>
-                <button onclick="closeEditModal()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold transition shadow-lg shadow-indigo-200">完成</button>
-            </div>
+            <div class="p-5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between gap-3"><div class="flex gap-2"><button onclick="addDefaultList()" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium">載入範例</button><button onclick="clearList()" class="px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium">清空</button></div><button onclick="closeEditModal()" class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold">完成</button></div>
         </div>
     </div>
-
-    <!-- Alert Modal Structure -->
-    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none" style="backdrop-filter: blur(2px);">
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-90">
-            <!-- 移除標題 h3 -->
-            <div id="modalMessage" class="text-gray-600 mb-6 text-sm leading-relaxed text-center">Message goes here</div>
-            <div id="modalActions" class="flex justify-center gap-3">
-                <!-- Buttons injected here -->
-            </div>
-        </div>
-    </div>
+    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none" style="backdrop-filter: blur(2px);"><div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-90 text-center"><div id="modalMessage" class="text-gray-600 mb-6 text-sm leading-relaxed"></div><div id="modalActions" class="flex justify-center gap-3"></div></div></div>
 
     <script>
-        // 狀態變數
         let names = [];
         let isRolling = false;
         let rollInterval;
-        let originalList = []; 
         let history = []; 
         let soundEnabled = true;
         let wakeLock = null;
         let audioCtx = null; 
-
-        // 轉盤變數
+        let currentGroups = [];
+        let groupScores = [];
+        let pickedFromGroups = new Set(); 
         let wheelCanvas, wheelCtx;
         let currentRotation = 0;
         let isSpinningWheel = false;
         let lastTickAngle = 0; 
-        
         let wheelColors = ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA', '#90dbf4', '#f1c0e8'];
+        const cuteEmojis = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦆","🦄","🦋","🐢","🐬","🐳","🦖","🦕","🐘","🦒","🍎","🍊","🍋","🍌","🍉","🍇","🍓","🍒","🍑","🍍","🥥","🥝","🥑","🥕","🍄"];
 
-        const cuteEmojis = [
-            "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵",
-            "🐔","🐧","🐦","🦆","🦄","🦋","🐢","🐬","🐳","🦖","🦕","🐘","🦒",
-            "🍎","🍊","🍋","🍌","🍉","🍇","🍓","🍒","🍑","🍍","🥥","🥝","🥑","🌽","🥕","🍄"
-        ];
+        let timerInterval = null;
+        let timerTotalSeconds = 60;
+        let timerSecondsRemaining = 60;
+        let isTimerRunning = false;
 
-        function getRandomEmoji() {
-            return cuteEmojis[Math.floor(Math.random() * cuteEmojis.length)];
-        }
+        function getRandomEmoji() { return cuteEmojis[Math.floor(Math.random() * cuteEmojis.length)]; }
 
-        // DOM 元素
         const textarea = document.getElementById('inputNames');
         const countDisplay = document.getElementById('count');
         const soundRoll = document.getElementById('sound-roll'); 
         const soundWin = document.getElementById('sound-win');
+        const soundAlarm = document.getElementById('sound-alarm');
         const soundBtn = document.getElementById('soundBtn');
         const wakeLockBtn = document.getElementById('wakeLockBtn');
-        const fileInput = document.getElementById('fileInput');
-        
-        // Modals
         const modal = document.getElementById('customModal');
         const modalMessage = document.getElementById('modalMessage');
         const modalActions = document.getElementById('modalActions');
         const editModal = document.getElementById('editModal');
-
-        // Views
         const singleView = document.getElementById('singleView');
         const groupView = document.getElementById('groupView');
         const wheelView = document.getElementById('wheelView');
-        
-        // Single View Specifics
+        const scoreView = document.getElementById('scoreView');
+        const timerView = document.getElementById('timerView');
         const displayName = document.getElementById('displayName');
         const statusText = document.getElementById('statusText');
         const actionBtn = document.getElementById('actionBtn');
@@ -357,749 +323,185 @@
         const historyList = document.getElementById('historyList');
         const historyCount = document.getElementById('historyCount');
         const resultCard = document.getElementById('resultCard');
-
-        // Group View Specifics
         const groupsContainer = document.getElementById('groupsContainer');
+        const scoreContainer = document.getElementById('scoreContainer');
         const groupCountInput = document.getElementById('groupCount');
-
-        // Wheel View Specifics
         const wheelCanvasEl = document.getElementById('wheelCanvas');
         const spinBtn = document.getElementById('spinBtn');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerProgress = document.getElementById('timerProgress');
+        const timerToggleBtn = document.getElementById('timerToggleBtn');
+        const timerToScoreBtn = document.getElementById('timerToScoreBtn');
 
-        // 初始化
         window.onload = () => {
             const saved = localStorage.getItem('namesList');
-            if (saved) {
-                textarea.value = saved;
-            } else {
-                addDefaultList();
-            }
+            if (saved) { textarea.value = saved; } else { addDefaultList(); }
             updateCount();
-            
-            soundRoll.volume = 0.5;
-            soundWin.volume = 0.5;
-
-            // Init Wheel Context
+            soundRoll.volume = 0.5; soundWin.volume = 0.5; soundAlarm.volume = 0.6;
             wheelCtx = wheelCanvasEl.getContext('2d');
+            updateTimerDisplay();
         };
 
-        // --- Mode Toggle Logic ---
         function setMode(mode) {
             const checkbox = document.getElementById('removeAfterPick');
             const btnKeep = document.getElementById('btnKeep');
             const btnRemove = document.getElementById('btnRemove');
-            
-            if (mode === 'remove') {
-                checkbox.checked = true;
-                btnRemove.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-                btnRemove.classList.remove('text-gray-500');
-                btnKeep.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-                btnKeep.classList.add('text-gray-500');
+            checkbox.checked = (mode === 'remove');
+            if (checkbox.checked) {
+                btnRemove.classList.add('bg-white', 'text-indigo-600', 'shadow-sm'); btnRemove.classList.remove('text-gray-500');
+                btnKeep.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm'); btnKeep.classList.add('text-gray-500');
             } else {
-                checkbox.checked = false;
-                btnKeep.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-                btnKeep.classList.remove('text-gray-500');
-                btnRemove.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-                btnRemove.classList.add('text-gray-500');
+                btnKeep.classList.add('bg-white', 'text-indigo-600', 'shadow-sm'); btnKeep.classList.remove('text-gray-500');
+                btnRemove.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm'); btnRemove.classList.add('text-gray-500');
             }
         }
 
-        // --- Edit Modal Logic ---
-        function openEditModal() {
-            editModal.classList.remove('hidden', 'pointer-events-none', 'opacity-0');
-            editModal.querySelector('div').classList.remove('scale-90');
-            editModal.querySelector('div').classList.add('scale-100');
-        }
+        function openEditModal() { editModal.classList.remove('hidden', 'pointer-events-none', 'opacity-0'); editModal.querySelector('div').classList.add('scale-100'); }
+        function closeEditModal() { editModal.classList.add('opacity-0', 'pointer-events-none'); editModal.querySelector('div').classList.remove('scale-100'); setTimeout(() => { editModal.classList.add('hidden'); updateCount(); }, 300); }
 
-        function closeEditModal() {
-            editModal.classList.add('opacity-0', 'pointer-events-none');
-            editModal.querySelector('div').classList.remove('scale-100');
-            editModal.querySelector('div').classList.add('scale-90');
-            setTimeout(() => {
-                editModal.classList.add('hidden');
-                // Ensure count is updated when closed
-                updateCount();
-            }, 300);
-        }
+        function initAudioContext() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } if (audioCtx.state === 'suspended') { audioCtx.resume(); } }
+        function playWheelTick() { if (!soundEnabled || !audioCtx) return; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.05); gain.gain.setValueAtTime(0.3, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.05); }
+        function playScoreSound(pos) { if (!soundEnabled || !audioCtx) return; initAudioContext(); const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = pos ? 'sine' : 'square'; osc.frequency.setValueAtTime(pos ? 600 : 200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(pos ? 1200 : 100, audioCtx.currentTime + 0.1); gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
 
-        // --- Audio System ---
-        function initAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        function playWheelTick() {
-            if (!soundEnabled || !audioCtx) return;
-            
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.05);
-            
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
-            
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.05);
-        }
-
-        // --- Alert Modal System ---
-        function showModal(message, type = 'alert', onConfirm = null) {
-            // 使用 innerHTML 以支援客製化格式
-            modalMessage.innerHTML = message;
-            modalActions.innerHTML = '';
-            
-            modal.classList.remove('hidden', 'pointer-events-none', 'opacity-0');
-            modal.querySelector('div').classList.remove('scale-90');
-            modal.querySelector('div').classList.add('scale-100');
-
+        function showModal(msg, type = 'alert', onConf = null) {
+            modalMessage.innerHTML = msg; modalActions.innerHTML = ''; modal.classList.remove('hidden', 'pointer-events-none', 'opacity-0'); modal.querySelector('div').classList.add('scale-100');
             if (type === 'confirm') {
-                const cancelBtn = document.createElement('button');
-                cancelBtn.className = "px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition text-sm";
-                cancelBtn.innerText = "取消";
-                cancelBtn.onclick = closeModal;
+                const cB = document.createElement('button'); cB.className = "px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition text-sm"; cB.innerText = "取消"; cB.onclick = closeModal;
+                const oB = document.createElement('button'); oB.className = "px-4 py-2 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-lg transition text-sm shadow-md shadow-indigo-200"; oB.innerText = "確定"; oB.onclick = () => { closeModal(); if (onConf) onConf(); };
+                modalActions.appendChild(cB); modalActions.appendChild(oB);
+            } else {
+                const oB = document.createElement('button'); oB.className = "px-4 py-2 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-lg transition text-sm shadow-md shadow-indigo-200"; oB.innerText = "確定"; oB.onclick = closeModal;
+                modalActions.appendChild(oB);
+            }
+        }
+        function closeModal() { modal.classList.add('opacity-0', 'pointer-events-none'); modal.querySelector('div').classList.remove('scale-100'); setTimeout(() => { modal.classList.add('hidden'); }, 300); }
+
+        document.addEventListener('keydown', (e) => { if (document.activeElement === textarea || document.activeElement === groupCountInput || !modal.classList.contains('hidden') || !editModal.classList.contains('hidden')) return; if (e.code === 'Space') { e.preventDefault(); if (!singleView.classList.contains('hidden')) toggleRoll(); else if (!timerView.classList.contains('hidden')) toggleTimer(); } });
+        textarea.addEventListener('input', () => { updateCount(); saveToStorage(); });
+        function updateCount() { const t = textarea.value.trim(); names = t ? t.split('\n').map(n => n.trim()).filter(n => n !== '') : []; countDisplay.innerText = names.length; }
+        function saveToStorage() { localStorage.setItem('namesList', textarea.value); }
+        function addDefaultList() { textarea.value = "劉芯娜\n楊斐扉\n吳睿圻\n陳芋霏\n余英\n曾子情\n林子桓\n許家笠\n高安喆\n黃柏銓\n飛飛\n陳柏言\n李秉芸"; updateCount(); saveToStorage(); }
+        function clearList() { showModal('確定要清空名單嗎？', 'confirm', () => { textarea.value = ''; updateCount(); saveToStorage(); resetUI(); clearHistory(); }); }
+        function resetList() { textarea.value = localStorage.getItem('namesList') || ""; updateCount(); showModal("已重置名單。"); }
+        function resetScores() { if (!currentGroups.length) return; showModal('確定要將分數歸零嗎？', 'confirm', () => { groupScores = groupScores.map(() => 0); renderScoreboard(); showModal("分數已重置！"); }); }
+        function exportList() { updateCount(); if (!names.length) return showModal("名單是空的！"); const s = JSON.stringify(names); const l = document.createElement('a'); l.setAttribute('href', 'data:application/json;charset=utf-8,'+ encodeURIComponent(s)); l.setAttribute('download', 'namelist.json'); l.click(); }
+        function importList(i) { const f = i.files[0]; if (!f) return; const r = new FileReader(); r.onload = (e) => { try { const c = e.target.result; try { const p = JSON.parse(c); textarea.value = Array.isArray(p) ? p.join('\n') : c; } catch { textarea.value = c; } updateCount(); saveToStorage(); showModal("匯入成功！"); } catch { showModal("匯入失敗！"); } i.value = ''; }; r.readAsText(f); }
+
+        function resetUI() { displayName.innerText = "READY?"; displayName.className = "name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all"; statusText.innerText = "等待開始"; showSingleView(); }
+
+        function toggleSound() { soundEnabled = !soundEnabled; if (soundEnabled) { soundBtn.classList.replace('text-gray-400', 'text-indigo-600'); soundBtn.classList.replace('bg-gray-100', 'bg-indigo-50'); initAudioContext(); } else { soundBtn.classList.replace('text-indigo-600', 'text-gray-400'); soundBtn.classList.replace('bg-indigo-50', 'bg-gray-100'); soundRoll.pause(); } }
+        function playSound(t) { if (!soundEnabled) return; if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); if (t === 'roll') { soundRoll.currentTime = 0; soundRoll.play().catch(() => {}); } else if (t === 'win') { soundRoll.pause(); soundWin.currentTime = 0; soundWin.play().catch(() => {}); } else if (t === 'alarm') { soundAlarm.currentTime = 0; soundAlarm.play().catch(() => {}); } }
+
+        async function toggleWakeLock() { if ('wakeLock' in navigator) { try { if (wakeLock === null) { wakeLock = await navigator.wakeLock.request('screen'); wakeLockBtn.classList.replace('bg-gray-100', 'bg-yellow-100'); wakeLockBtn.classList.replace('text-gray-500', 'text-yellow-600'); } else { await wakeLock.release(); wakeLock = null; wakeLockBtn.classList.replace('bg-yellow-100', 'bg-gray-100'); wakeLockBtn.classList.replace('text-yellow-600', 'text-gray-500'); } } catch { showModal("權限被拒！"); wakeLock = null; } } else { showModal("瀏覽器不支援！"); } }
+
+        function toggleRoll() { updateCount(); initAudioContext(); if (!names.length) return openEditModal(); if (isRolling) stopRoll(); else startRoll(); }
+        function startRoll() { isRolling = true; showSingleView(); btnText.innerText = "停止 (Space)"; actionBtn.classList.replace('from-indigo-600', 'from-pink-500'); actionBtn.classList.replace('to-purple-600', 'to-rose-500'); statusText.innerText = "正在抽選中..."; resultCard.classList.add('border-indigo-400'); displayName.classList.remove('text-gray-300'); displayName.classList.add('text-indigo-600'); playSound('roll'); rollInterval = setInterval(() => { displayName.innerText = getRandomEmoji() + ' ' + names[Math.floor(Math.random() * names.length)]; }, 50); }
+        function stopRoll() { clearInterval(rollInterval); isRolling = false; const idx = Math.floor(Math.random() * names.length); const winName = names[idx]; const winE = getRandomEmoji(); displayName.innerText = `${winE} ${winName}`; statusText.innerText = "恭喜中獎！"; btnText.innerText = "開始點名"; actionBtn.classList.replace('from-pink-500', 'from-indigo-600'); actionBtn.classList.replace('to-rose-500', 'to-purple-600'); displayName.classList.add('animate-pop', 'text-red-600'); resultCard.classList.remove('border-indigo-400'); playSound('win'); addToHistory(`${winE} ${winName}`); fireConfetti(); if (removeCheckbox.checked) setTimeout(() => removeName(idx), 1500); }
+        function removeName(i) { const r = names.splice(i, 1); textarea.value = names.join('\n'); updateCount(); saveToStorage(); statusText.innerText = `已移除: ${r[0]}`; }
+        function addToHistory(n) { history.push(n); renderHistory(); }
+        function clearHistory() { history = []; renderHistory(); }
+        function renderHistory() { historyCount.innerText = history.length; historyList.innerHTML = history.length ? [...history].reverse().map(n => `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 animate-pop">${n}</span>`).join('') : '<span class="text-xs text-gray-400 italic">尚未開始</span>'; }
+
+        function generateGroups() { 
+            updateCount(); initAudioContext(); 
+            if (!names.length) return openEditModal(); 
+            const n = parseInt(groupCountInput.value); 
+            if (isNaN(n) || n < 2 || n > names.length) return showModal("組數設定錯誤！"); 
+            let s = [...names].sort(() => Math.random() - 0.5); 
+            currentGroups = Array.from({ length: n }, () => []); 
+            groupScores = new Array(n).fill(0); 
+            pickedFromGroups.clear(); 
+            s.forEach((v, i) => { currentGroups[i % n].push(`${getRandomEmoji()} ${v}`); }); 
+            renderGroups(); showGroupView(); fireConfetti(); playSound('win'); 
+        }
+
+        function renderGroups() {
+            groupsContainer.innerHTML = currentGroups.map((g, i) => {
+                const membersHtml = g.map(n => {
+                    const isPicked = pickedFromGroups.has(n);
+                    return `<li class="flex items-center gap-2 p-1 transition-all ${isPicked ? 'picked-member' : ''}"><span class="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>${n}</li>`;
+                }).join('');
                 
-                const confirmBtn = document.createElement('button');
-                confirmBtn.className = "px-4 py-2 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-lg transition text-sm shadow-md shadow-indigo-200";
-                confirmBtn.innerText = "確定";
-                confirmBtn.onclick = () => {
-                    closeModal();
-                    if (onConfirm) onConfirm();
-                };
-                
-                modalActions.appendChild(cancelBtn);
-                modalActions.appendChild(confirmBtn);
-            } else {
-                const okBtn = document.createElement('button');
-                okBtn.className = "px-4 py-2 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-lg transition text-sm shadow-md shadow-indigo-200";
-                okBtn.innerText = "確定";
-                okBtn.onclick = closeModal;
-                modalActions.appendChild(okBtn);
-            }
+                return `
+                <div class="group-card bg-white rounded-xl border border-gray-200 shadow-sm p-4" style="animation-delay: ${i*0.1}s">
+                    <h3 class="text-lg font-bold text-rose-600 mb-3 border-b pb-2 flex justify-between items-center">
+                        <div class="flex items-center gap-2"><span>第 ${i+1} 組</span><span class="text-xs bg-rose-50 px-2 py-0.5 rounded-full text-rose-400">${g.length}人</span></div>
+                        <button onclick="pickFromGroup(${i})" class="p-1.5 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></button>
+                    </h3>
+                    <ul class="text-gray-700 space-y-1 text-sm">${membersHtml}</ul>
+                </div>`;
+            }).join('');
         }
 
-        function closeModal() {
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            modal.querySelector('div').classList.remove('scale-100');
-            modal.querySelector('div').classList.add('scale-90');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
+        function renderScoreboard() {
+            scoreContainer.innerHTML = currentGroups.map((g, i) => {
+                const membersFormatted = g.map(n => {
+                    const isPicked = pickedFromGroups.has(n);
+                    return isPicked ? `<span class="picked-member">${n}</span>` : `<span>${n}</span>`;
+                }).join('、');
+
+                return `
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col items-center relative">
+                    <button onclick="pickFromGroup(${i})" class="absolute top-2 right-2 p-2 rounded-lg text-rose-400 hover:bg-rose-50 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></button>
+                    <h3 class="text-lg font-bold text-rose-600 border-b w-full text-center pb-2 mb-2">第 ${i+1} 組</h3>
+                    <div class="text-6xl font-black text-indigo-600 my-4" id="score-display-${i}">${groupScores[i]}</div>
+                    <div class="flex gap-4"><button onclick="updateScore(${i},-1)" class="w-12 h-12 rounded-full bg-red-100 text-red-600 font-bold hover:bg-red-200 transition">-1</button><button onclick="updateScore(${i},1)" class="w-12 h-12 rounded-full bg-green-100 text-green-600 font-bold hover:bg-green-200 transition">+1</button></div>
+                    <div class="mt-4 text-sm font-bold text-gray-700 text-center w-full bg-rose-50/50 p-2 rounded-lg leading-relaxed shadow-inner">${membersFormatted}</div>
+                </div>`;
+            }).join('');
         }
 
-        // Input & Keys
-        document.addEventListener('keydown', (e) => {
-            if (document.activeElement === textarea || document.activeElement === groupCountInput) return;
-            if (!modal.classList.contains('hidden')) return; 
-            if (!editModal.classList.contains('hidden')) return; 
-
-            if (e.code === 'Space') {
-                e.preventDefault(); 
-                if (!singleView.classList.contains('hidden') && !singleView.classList.contains('flex-none')) { 
-                    toggleRoll();
-                }
-            }
-        });
-
-        textarea.addEventListener('input', () => {
-            updateCount();
-            saveToStorage();
-        });
-
-        function updateCount() {
-            const text = textarea.value.trim();
-            if (!text) {
-                names = [];
-            } else {
-                names = text.split('\n').map(n => n.trim()).filter(n => n !== '');
-            }
-            countDisplay.innerText = names.length;
-        }
-
-        function saveToStorage() {
-            localStorage.setItem('namesList', textarea.value);
-        }
-
-        function addDefaultList() {
-            const defaults = "劉芯娜\n楊斐扉\n吳睿圻\n陳芋霏\n余英\n曾子情\n林子桓\n許家笠\n高安喆\n黃柏銓\n飛飛\n陳柏言\n李秉芸";
-            textarea.value = defaults;
-            updateCount();
-            saveToStorage();
-            originalList = defaults.split('\n').filter(n => n.trim() !== '');
-        }
-
-        function clearList() {
-            showModal('確定要清空名單嗎？此動作無法復原。', 'confirm', () => {
-                textarea.value = '';
-                updateCount();
-                saveToStorage();
-                resetUI();
-                clearHistory();
-            });
-        }
-
-        function resetList() {
-             textarea.value = localStorage.getItem('namesList') || "";
-             updateCount();
-             showModal("名單已重置為最後保存的狀態。");
-        }
-
-        // --- Import / Export ---
-        function exportList() {
-            updateCount();
-            if (names.length === 0) {
-                showModal("名單是空的，無法匯出！");
-                return;
-            }
-            const dataStr = JSON.stringify(names);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            
-            const exportFileDefaultName = 'namelist.json';
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', exportFileDefaultName);
-            linkElement.click();
-        }
-
-        function importList(input) {
-            const file = input.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const content = e.target.result;
-                    try {
-                        const parsed = JSON.parse(content);
-                        if (Array.isArray(parsed)) {
-                            textarea.value = parsed.join('\n');
-                        } else {
-                            throw new Error("Invalid JSON array");
-                        }
-                    } catch (jsonErr) {
-                        textarea.value = content;
-                    }
-                    updateCount();
-                    saveToStorage();
-                    showModal("名單匯入成功！");
-                } catch (err) {
-                    showModal("匯入失敗，檔案格式錯誤。");
-                }
-                input.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function resetUI() {
-            displayName.innerText = "READY?";
-            displayName.className = "name-display text-5xl md:text-7xl font-black text-gray-300 select-none break-all";
-            statusText.innerText = "等待開始";
-            showSingleView();
-        }
-
-        // --- Sound & WakeLock ---
-        function toggleSound() {
-            soundEnabled = !soundEnabled;
-            if (soundEnabled) {
-                soundBtn.classList.remove('muted');
-                soundBtn.classList.add('active', 'bg-indigo-50', 'text-indigo-600');
-                soundBtn.classList.remove('bg-gray-100', 'text-gray-400');
-                initAudioContext(); 
-            } else {
-                soundBtn.classList.add('muted');
-                soundBtn.classList.remove('active', 'bg-indigo-50', 'text-indigo-600');
-                soundBtn.classList.add('bg-gray-100', 'text-gray-400');
-                soundRoll.pause();
-                soundRoll.currentTime = 0;
-            }
-        }
-
-        function playSound(type) {
-            if (!soundEnabled) return;
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            if (type === 'roll') {
-                soundRoll.currentTime = 0;
-                soundRoll.play().catch(e => {});
-            } else if (type === 'win') {
-                soundRoll.pause();
-                soundWin.currentTime = 0;
-                soundWin.play().catch(e => {});
-            }
-        }
-
-        async function toggleWakeLock() {
-            if ('wakeLock' in navigator) {
-                try {
-                    if (wakeLock === null) {
-                        wakeLock = await navigator.wakeLock.request('screen');
-                        wakeLockBtn.classList.add('bg-yellow-100', 'text-yellow-600');
-                        wakeLockBtn.classList.remove('bg-gray-100', 'text-gray-500');
-                        wakeLock.addEventListener('release', () => {
-                            if(wakeLock === null) {
-                                wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
-                                wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
-                            }
-                        });
-                    } else {
-                        await wakeLock.release();
-                        wakeLock = null;
-                        wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
-                        wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
-                    }
-                } catch (err) {
-                    if (err.name === 'NotAllowedError') {
-                        showModal("無法啟用防休眠：\n權限被拒或電量過低。");
-                    } else {
-                        showModal("無法啟用防休眠功能");
-                    }
-                    wakeLock = null;
-                    wakeLockBtn.classList.remove('bg-yellow-100', 'text-yellow-600');
-                    wakeLockBtn.classList.add('bg-gray-100', 'text-gray-500');
-                }
-            } else {
-                showModal("瀏覽器不支援防休眠");
-            }
-        }
-
-        // --- Single Roll Logic ---
-        function toggleRoll() {
-            updateCount(); 
-            initAudioContext(); 
-
-            if (names.length === 0) {
-                showModal("請先輸入名單！");
-                openEditModal(); 
-                return;
-            }
-
-            if (isRolling) {
-                stopRoll();
-            } else {
-                startRoll();
-            }
-        }
-
-        function startRoll() {
-            isRolling = true;
-            showSingleView(); 
-
-            btnText.innerText = "停止 (Space)";
-            actionBtn.classList.remove('from-indigo-600', 'to-purple-600');
-            actionBtn.classList.add('from-pink-500', 'to-rose-500');
-            statusText.innerText = "正在抽選中...";
-            resultCard.classList.remove('border-indigo-100');
-            resultCard.classList.add('border-indigo-400', 'shadow-inner');
-            
-            displayName.classList.remove('text-gray-300');
-            displayName.classList.add('text-indigo-600');
-            displayName.classList.remove('animate-pop', 'text-red-600');
-            
-            playSound('roll');
-
-            let speed = 50;
-            rollInterval = setInterval(() => {
-                const randomName = names[Math.floor(Math.random() * names.length)];
-                displayName.innerText = getRandomEmoji() + ' ' + randomName;
-            }, speed);
-        }
-
-        function stopRoll() {
-            clearInterval(rollInterval);
-            isRolling = false;
-
-            const winnerIndex = Math.floor(Math.random() * names.length);
-            const winnerName = names[winnerIndex];
-            
-            const winnerEmoji = getRandomEmoji();
-            const finalText = `${winnerEmoji} ${winnerName}`;
-            
-            displayName.innerText = finalText;
-
-            statusText.innerText = "恭喜中獎！";
-            btnText.innerText = "開始點名";
-            actionBtn.classList.add('from-indigo-600', 'to-purple-600');
-            actionBtn.classList.remove('from-pink-500', 'to-rose-500');
-            
-            displayName.classList.add('animate-pop', 'text-red-600');
-            resultCard.classList.add('border-indigo-100');
-            resultCard.classList.remove('border-indigo-400', 'shadow-inner');
-
-            playSound('win');
-            addToHistory(finalText); 
-            fireConfetti();
-
-            if (removeCheckbox.checked) {
-                setTimeout(() => {
-                    removeName(winnerIndex);
-                }, 1500);
-            }
-        }
-
-        // --- Common Utils ---
-        function removeName(index) {
-            const removed = names.splice(index, 1);
-            textarea.value = names.join('\n');
-            updateCount();
-            saveToStorage();
-            statusText.innerText = `已移除: ${removed[0]} (剩餘 ${names.length} 人)`;
-        }
-
-        function addToHistory(name) {
-            history.push(name);
-            renderHistory();
-        }
-
-        function clearHistory() {
-            history = [];
-            renderHistory();
-        }
-
-        function renderHistory() {
-            historyCount.innerText = history.length;
-            if (history.length === 0) {
-                historyList.innerHTML = '<span class="text-xs text-gray-400 italic py-1">尚未開始點名</span>';
-                return;
-            }
-            historyList.innerHTML = '';
-            [...history].reverse().forEach(name => {
-                const tag = document.createElement('span');
-                tag.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 animate-pop";
-                tag.innerText = name;
-                historyList.appendChild(tag);
-            });
-        }
-
-        // --- Group Logic ---
-        function generateGroups() {
-            updateCount();
-            if (names.length === 0) {
-                showModal("請先輸入名單！");
-                openEditModal();
-                return;
-            }
-
-            const numGroups = parseInt(groupCountInput.value);
-            if (isNaN(numGroups) || numGroups < 2) {
-                showModal("請至少分成 2 組！");
-                return;
-            }
-            
-            if (numGroups > names.length) {
-                showModal("組數不能多於人數！");
-                return;
-            }
-
-            let shuffled = [...names];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-
-            let groups = Array.from({ length: numGroups }, () => []);
-            shuffled.forEach((name, index) => {
-                groups[index % numGroups].push(`${getRandomEmoji()} ${name}`);
-            });
-
-            renderGroups(groups);
-            showGroupView();
-            fireConfetti();
-        }
-
-        function renderGroups(groups) {
-            groupsContainer.innerHTML = '';
-            groups.forEach((group, index) => {
-                const card = document.createElement('div');
-                card.className = 'group-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition p-4 flex flex-col';
-                card.style.animationDelay = `${index * 0.1}s`;
-                
-                const title = document.createElement('h3');
-                title.className = 'text-lg font-bold text-indigo-600 mb-3 border-b border-gray-100 pb-2 flex justify-between';
-                title.innerHTML = `<span>第 ${index + 1} 組</span> <span class="text-xs bg-indigo-50 text-indigo-400 px-2 py-1 rounded-full">${group.length}人</span>`;
-                
-                const list = document.createElement('ul');
-                list.className = 'text-gray-700 space-y-1 text-sm flex-1 font-medium';
-                group.forEach(name => {
-                    const li = document.createElement('li');
-                    li.className = 'flex items-center gap-2';
-                    li.innerHTML = `<span class="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>${name}`;
-                    list.appendChild(li);
-                });
-
-                card.appendChild(title);
-                card.appendChild(list);
-                groupsContainer.appendChild(card);
-            });
-        }
-
-        // --- Wheel Logic ---
-        function initWheelMode() {
-            updateCount();
-            if (names.length === 0) {
-                showModal("請先輸入名單！");
-                openEditModal();
-                return;
-            }
-            if (names.length < 2) {
-                showModal("轉盤模式至少需要 2 人！");
-                return;
-            }
+        function pickFromGroup(groupIndex) {
             initAudioContext();
-            showWheelView();
-            currentRotation = 0; 
-            lastTickAngle = 0;
-            drawWheel();
-        }
-
-        function drawWheel() {
-            if (!wheelCtx) return;
-            
-            const numSegments = names.length;
-            const arcSize = (2 * Math.PI) / numSegments;
-            const centerX = 250;
-            const centerY = 250;
-            const radius = 220; 
-
-            wheelCtx.clearRect(0, 0, 500, 500);
-
-            // 1. Rotation
-            wheelCtx.save();
-            wheelCtx.translate(centerX, centerY);
-            wheelCtx.rotate(currentRotation);
-            wheelCtx.translate(-centerX, -centerY);
-
-            // 2. Segments
-            for (let i = 0; i < numSegments; i++) {
-                const angle = i * arcSize;
-                const color = wheelColors[i % wheelColors.length];
-                
-                wheelCtx.beginPath();
-                wheelCtx.moveTo(centerX, centerY);
-                wheelCtx.arc(centerX, centerY, radius, angle, angle + arcSize);
-                wheelCtx.closePath();
-                wheelCtx.fillStyle = color;
-                wheelCtx.fill();
-                wheelCtx.lineWidth = 1;
-                wheelCtx.strokeStyle = "white";
-                wheelCtx.stroke();
-
-                // Text
-                wheelCtx.save();
-                wheelCtx.translate(centerX, centerY);
-                wheelCtx.rotate(angle + arcSize / 2);
-                wheelCtx.textAlign = "right";
-                wheelCtx.textBaseline = "middle";
-                wheelCtx.fillStyle = "#333";
-                
-                const emoji = cuteEmojis[i % cuteEmojis.length];
-                const text = `${emoji} ${names[i]}`;
-                
-                let fontSize = 24;
-                const maxTextWidth = radius * 0.75; 
-                wheelCtx.font = `bold ${fontSize}px 'Noto Sans TC'`;
-                let textWidth = wheelCtx.measureText(text).width;
-                
-                while (textWidth > maxTextWidth && fontSize > 10) {
-                    fontSize -= 1;
-                    wheelCtx.font = `bold ${fontSize}px 'Noto Sans TC'`;
-                    textWidth = wheelCtx.measureText(text).width;
+            const group = currentGroups[groupIndex];
+            if (!group || group.length === 0) return;
+            const candidates = group.filter(m => !pickedFromGroups.has(m));
+            if (candidates.length === 0) {
+                showModal(`<div class="text-xl font-bold text-gray-600">第 ${groupIndex + 1} 組成員已全數抽過囉！</div>`);
+                return;
+            }
+            showModal(`<div class="flex flex-col items-center"><div class="text-lg text-gray-500 mb-4">正在從第 ${groupIndex + 1} 組中抽選...</div><div id="pickingDisplay" class="text-3xl font-black text-indigo-600 animate-pulse h-10"></div></div>`);
+            const display = document.getElementById('pickingDisplay');
+            playSound('roll');
+            let count = 0; const maxCycles = 15;
+            const interval = setInterval(() => {
+                display.innerText = candidates[Math.floor(Math.random() * candidates.length)];
+                count++;
+                if (count >= maxCycles) {
+                    clearInterval(interval); 
+                    const winner = candidates[Math.floor(Math.random() * candidates.length)];
+                    pickedFromGroups.add(winner); 
+                    playSound('win'); fireConfetti();
+                    showModal(`<div class="flex flex-col items-center"><div class="text-xl font-bold mb-3 text-gray-700">第 ${groupIndex+1} 組的天選之人：</div><div class="text-4xl font-black text-rose-600 animate-pop">🎉 ${winner} 🎉</div></div>`);
+                    if (!groupView.classList.contains('hidden')) renderGroups();
+                    if (!scoreView.classList.contains('hidden')) renderScoreboard();
                 }
-
-                wheelCtx.shadowColor = "rgba(255, 255, 255, 0.8)";
-                wheelCtx.shadowBlur = 4;
-                wheelCtx.fillText(text, radius - 20, 0);
-                wheelCtx.restore();
-            }
-            
-            // 3. Outer Ring
-            wheelCtx.beginPath();
-            wheelCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-            wheelCtx.lineWidth = 16;
-            wheelCtx.strokeStyle = "#FFFFFF"; 
-            wheelCtx.stroke();
-            
-            wheelCtx.beginPath();
-            wheelCtx.arc(centerX, centerY, radius + 8, 0, 2 * Math.PI);
-            wheelCtx.lineWidth = 2;
-            wheelCtx.strokeStyle = "rgba(0,0,0,0.1)";
-            wheelCtx.stroke();
-
-            // 4. Lights
-            const dotCount = 24; 
-            const dotRadius = radius; 
-            for (let j = 0; j < dotCount; j++) {
-                const dotAngle = (j / dotCount) * 2 * Math.PI;
-                const dx = centerX + Math.cos(dotAngle) * dotRadius;
-                const dy = centerY + Math.sin(dotAngle) * dotRadius;
-                
-                wheelCtx.beginPath();
-                wheelCtx.arc(dx, dy, 4, 0, 2 * Math.PI);
-                wheelCtx.fillStyle = j % 2 === 0 ? "#FFD700" : "#FF6B6B";
-                wheelCtx.fill();
-            }
-
-            wheelCtx.restore();
+            }, 100);
         }
 
-        function spinWheel() {
-            if (isSpinningWheel) return;
-            
-            initAudioContext(); 
-            isSpinningWheel = true;
-            spinBtn.disabled = true;
-            
-            const spinAngle = (5 * 2 * Math.PI) + (Math.random() * 2 * Math.PI);
-            const duration = 5000; 
-            const startAngle = currentRotation;
-            const startTime = performance.now();
-            
-            lastTickAngle = startAngle;
+        function updateScore(idx, d) { groupScores[idx] += d; const el = document.getElementById(`score-display-${idx}`); if (el) { el.innerText = groupScores[idx]; el.classList.remove('score-pop'); void el.offsetWidth; el.classList.add('score-pop'); } playScoreSound(d > 0); }
 
-            function animate(currentTime) {
-                const elapsed = currentTime - startTime;
-                if (elapsed < duration) {
-                    const progress = elapsed / duration;
-                    const easeOut = 1 - Math.pow(1 - progress, 3);
-                    
-                    const newRotation = startAngle + (spinAngle * easeOut);
-                    
-                    const delta = newRotation - lastTickAngle;
-                    const arcSize = (2 * Math.PI) / names.length;
-                    
-                    if (delta >= arcSize) {
-                        playWheelTick();
-                        lastTickAngle = newRotation - (delta % arcSize); 
-                    } else if (newRotation - lastTickAngle > arcSize) {
-                         playWheelTick();
-                         lastTickAngle += arcSize;
-                    }
+        function showTimerView() { hideAll(); timerView.classList.remove('hidden'); timerView.classList.add('flex'); if (currentGroups.length > 0) timerToScoreBtn.classList.remove('hidden'); else timerToScoreBtn.classList.add('hidden'); }
+        function setTimer(s) { resetTimer(); timerTotalSeconds = s; timerSecondsRemaining = s; updateTimerDisplay(); }
+        function updateTimerDisplay() { const m = Math.floor(timerSecondsRemaining / 60); const s = timerSecondsRemaining % 60; timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; const o = 282.7 - (timerSecondsRemaining / timerTotalSeconds) * 282.7; timerProgress.style.strokeDashoffset = o; if (timerSecondsRemaining <= 10 && isTimerRunning) timerDisplay.classList.add('timer-danger'); else timerDisplay.classList.remove('timer-danger'); }
+        function toggleTimer() { initAudioContext(); if (isTimerRunning) pauseTimer(); else startTimer(); }
+        function startTimer() { if (timerSecondsRemaining <= 0) return; isTimerRunning = true; timerToggleBtn.innerText = "暫停"; timerToggleBtn.classList.replace('bg-indigo-600', 'bg-rose-600'); timerInterval = setInterval(() => { timerSecondsRemaining--; updateTimerDisplay(); if (timerSecondsRemaining <= 0) { clearInterval(timerInterval); timerFinished(); } }, 1000); }
+        function pauseTimer() { isTimerRunning = false; clearInterval(timerInterval); timerToggleBtn.innerText = "繼續"; timerToggleBtn.classList.replace('bg-rose-600', 'bg-indigo-600'); }
+        function resetTimer() { isTimerRunning = false; clearInterval(timerInterval); timerSecondsRemaining = timerTotalSeconds; timerToggleBtn.innerText = "開始"; timerToggleBtn.className = "px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95 transition"; updateTimerDisplay(); }
+        function timerFinished() { isTimerRunning = false; playSound('alarm'); fireConfetti(); showModal(`<div class="text-2xl font-black text-rose-600">⌛ 時間到！</div>`); resetTimer(); }
 
-                    currentRotation = newRotation;
-                    drawWheel();
-                    requestAnimationFrame(animate);
-                } else {
-                    currentRotation = startAngle + spinAngle;
-                    drawWheel();
-                    isSpinningWheel = false;
-                    spinBtn.disabled = false;
-                    
-                    const normalizedRotation = currentRotation % (2 * Math.PI);
-                    const numSegments = names.length;
-                    const arcSize = (2 * Math.PI) / numSegments;
-                    
-                    let pointerAngle = (3 * Math.PI / 2 - normalizedRotation) % (2 * Math.PI);
-                    if (pointerAngle < 0) pointerAngle += 2 * Math.PI;
-                    
-                    const winnerIndex = Math.floor(pointerAngle / arcSize);
-                    const winnerName = names[winnerIndex];
-                    const winnerEmoji = cuteEmojis[winnerIndex % cuteEmojis.length];
+        function initWheelMode() { updateCount(); initAudioContext(); if (names.length < 2) return showModal("至少需 2 人！"); showWheelView(); currentRotation = 0; lastTickAngle = 0; drawWheel(); }
+        function drawWheel() { if (!wheelCtx) return; const n = names.length; const arcSize = (2 * Math.PI) / n; wheelCtx.clearRect(0, 0, 500, 500); wheelCtx.save(); wheelCtx.translate(250, 250); wheelCtx.rotate(currentRotation); wheelCtx.translate(-250, -250); for (let i = 0; i < n; i++) { const angle = i * arcSize; wheelCtx.beginPath(); wheelCtx.moveTo(250, 250); wheelCtx.arc(250, 250, 220, angle, angle + arcSize); wheelCtx.fillStyle = wheelColors[i % wheelColors.length]; wheelCtx.fill(); wheelCtx.strokeStyle = "white"; wheelCtx.stroke(); wheelCtx.save(); wheelCtx.translate(250, 250); wheelCtx.rotate(angle + arcSize / 2); wheelCtx.textAlign = "right"; wheelCtx.fillStyle = "#333"; const t = `${cuteEmojis[i % cuteEmojis.length]} ${names[i]}`; let f = 24; wheelCtx.font = `bold ${f}px Noto Sans TC`; while (wheelCtx.measureText(t).width > 154 && f > 10) { f--; wheelCtx.font = `bold ${f}px Noto Sans TC`; } wheelCtx.fillText(t, 200, 5); wheelCtx.restore(); } wheelCtx.beginPath(); wheelCtx.arc(250, 250, 220, 0, 2 * Math.PI); wheelCtx.lineWidth = 16; wheelCtx.strokeStyle = "white"; wheelCtx.stroke(); wheelCtx.restore(); }
+        function spinWheel() { if (isSpinningWheel) return; initAudioContext(); isSpinningWheel = true; spinBtn.disabled = true; const s = (5 * 2 * Math.PI) + (Math.random() * 2 * Math.PI); const dur = 5000; const st = currentRotation; const startT = performance.now(); lastTickAngle = st; function animate(t) { const el = t - startT; if (el < dur) { const p = el / dur; const e = 1 - Math.pow(1 - p, 3); const nr = st + (s * e); const aSize = (2 * Math.PI) / names.length; if (nr - lastTickAngle >= aSize) { playWheelTick(); lastTickAngle += aSize; } currentRotation = nr; drawWheel(); requestAnimationFrame(animate); } else { currentRotation = st + s; drawWheel(); isSpinningWheel = false; spinBtn.disabled = false; const n = currentRotation % (2 * Math.PI); const aFinal = (2 * Math.PI) / names.length; let pa = (3 * Math.PI / 2 - n) % (2 * Math.PI); if (pa < 0) pa += 2 * Math.PI; const wi = Math.floor(pa / aFinal); playSound('win'); fireConfetti(); showModal(`<div class="text-xl font-bold mb-3 text-gray-700">恭喜！指針指向了：</div><div class="text-4xl font-black text-rose-600 animate-pop">🎉 ${cuteEmojis[wi % cuteEmojis.length]} ${names[wi]} 🎉</div>`); addToHistory(`🎯 ${cuteEmojis[wi % cuteEmojis.length]} ${names[wi]}`); } } requestAnimationFrame(animate); }
 
-                    playSound('win');
-                    fireConfetti();
-                    
-                    showModal(`
-                        <div class="flex flex-col items-center">
-                            <div class="text-xl font-bold text-gray-700 mb-3">恭喜！指針指向了：</div>
-                            <div class="text-4xl font-black text-indigo-600 animate-pop">🎉 ${winnerEmoji} ${winnerName} 🎉</div>
-                        </div>
-                    `);
-                    addToHistory(`🎯 ${winnerEmoji} ${winnerName}`);
-                }
-            }
-            
-            requestAnimationFrame(animate);
-        }
+        function hideAll() { [singleView, groupView, wheelView, scoreView, timerView].forEach(v => { v.classList.add('hidden'); v.classList.remove('flex'); }); }
+        function showSingleView() { hideAll(); singleView.classList.remove('hidden'); singleView.classList.add('flex'); }
+        function showGroupView() { hideAll(); groupView.classList.remove('hidden'); groupView.classList.add('flex'); renderGroups(); }
+        function showWheelView() { hideAll(); wheelView.classList.remove('hidden'); wheelView.classList.add('flex'); }
+        function showScoreView() { if (!currentGroups.length) return showModal("請先分組！"); hideAll(); scoreView.classList.remove('hidden'); scoreView.classList.add('flex'); renderScoreboard(); }
 
-        // View Switching
-        function showSingleView() {
-            singleView.classList.remove('hidden');
-            singleView.classList.add('flex');
-            groupView.classList.add('hidden');
-            groupView.classList.remove('flex');
-            wheelView.classList.add('hidden');
-            wheelView.classList.remove('flex');
-        }
-
-        function showGroupView() {
-            singleView.classList.add('hidden');
-            singleView.classList.remove('flex');
-            groupView.classList.remove('hidden');
-            groupView.classList.add('flex');
-            wheelView.classList.add('hidden');
-            wheelView.classList.remove('flex');
-        }
-        
-        function showWheelView() {
-            singleView.classList.add('hidden');
-            singleView.classList.remove('flex');
-            groupView.classList.add('hidden');
-            groupView.classList.remove('flex');
-            wheelView.classList.remove('hidden');
-            wheelView.classList.add('flex');
-        }
-
-        function copyGroups() {
-            const cards = groupsContainer.querySelectorAll('.group-card');
-            let text = "";
-            cards.forEach((card, index) => {
-                const names = Array.from(card.querySelectorAll('li')).map(li => li.innerText).join(', ');
-                text += `第 ${index + 1} 組: ${names}\n`;
-            });
-            
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showModal("分組結果已複製到剪貼簿！");
-                }).catch(err => {
-                    fallbackCopy(text);
-                });
-            } else {
-                fallbackCopy(text);
-            }
-        }
-        
-        function fallbackCopy(text) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showModal("分組結果已複製到剪貼簿！");
-            } catch (err) {
-                showModal("複製失敗，請手動複製。");
-            }
-            document.body.removeChild(textArea);
-        }
-
-        // --- Confetti ---
-        function fireConfetti() {
-            var duration = 2 * 1000;
-            var animationEnd = Date.now() + duration;
-            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-            var random = function(min, max) { return Math.random() * (max - min) + min; }
-
-            var interval = setInterval(function() {
-              var timeLeft = animationEnd - Date.now();
-              if (timeLeft <= 0) return clearInterval(interval);
-              var particleCount = 50 * (timeLeft / duration);
-              confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.1, 0.3), y: Math.random() - 0.2 } }));
-              confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.7, 0.9), y: Math.random() - 0.2 } }));
-            }, 250);
-        }
-
+        function copyGroups() { let t = currentGroups.map((g, i) => `第 ${i+1} 組: ${g.join(', ')}`).join('\n'); navigator.clipboard.writeText(t).then(() => showModal("已複製！")).catch(() => { const el = document.createElement("textarea"); el.value = t; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); showModal("已複製！"); }); }
+        function fireConfetti() { const end = Date.now() + 2000; const inter = setInterval(() => { if (Date.now() > end) return clearInterval(inter); confetti({ particleCount: 40, origin: { x: Math.random(), y: Math.random() - 0.2 } }); }, 200); }
     </script>
 </body>
 </html>
